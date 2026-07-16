@@ -1,0 +1,55 @@
+{
+  "title": "Neural Networks (example set)",
+  "categories": [
+    {
+      "name": "Building Blocks",
+      "clues": [
+        { "value": 100, "clue": "The basic unit of a neural network that sums weighted inputs and fires an output.", "answer": "What is a neuron (or node)?" },
+        { "value": 200, "clue": "The stacked groups of neurons between the input and output.", "answer": "What are hidden layers?" },
+        { "value": 300, "clue": "The number multiplied by each input that the network learns during training.", "answer": "What is a weight?" },
+        { "value": 400, "clue": "The extra learnable number added to a neuron before its activation.", "answer": "What is the bias?", "dd": true },
+        { "value": 500, "clue": "A network where information flows in one direction, input to output, with no loops.", "answer": "What is a feedforward network?" }
+      ]
+    },
+    {
+      "name": "Activations",
+      "clues": [
+        { "value": 100, "clue": "The activation that outputs the input if positive, else zero.", "answer": "What is ReLU?" },
+        { "value": 200, "clue": "The S-shaped activation that squashes values between 0 and 1.", "answer": "What is the sigmoid?" },
+        { "value": 300, "clue": "The activation that turns a vector of scores into probabilities that sum to one.", "answer": "What is softmax?" },
+        { "value": 400, "clue": "Why we need nonlinear activations at all: without them a deep net collapses into this.", "answer": "What is a single linear function?" },
+        { "value": 500, "clue": "The activation similar to sigmoid but ranging from -1 to 1.", "answer": "What is tanh?" }
+      ]
+    },
+    {
+      "name": "Training",
+      "clues": [
+        { "value": 100, "clue": "The algorithm that sends the error backward through the network to update weights.", "answer": "What is backpropagation?" },
+        { "value": 200, "clue": "The setting that controls how big each weight update step is.", "answer": "What is the learning rate?" },
+        { "value": 300, "clue": "One full pass over all the training data.", "answer": "What is an epoch?" },
+        { "value": 400, "clue": "A small chunk of training examples processed together in one step.", "answer": "What is a batch (or mini-batch)?", "dd": true },
+        { "value": 500, "clue": "The function backprop tries to minimize, measuring prediction error.", "answer": "What is the loss function?" }
+      ]
+    },
+    {
+      "name": "Going Deep",
+      "clues": [
+        { "value": 100, "clue": "The network type built for images, using filters that slide across the picture.", "answer": "What is a convolutional neural network (CNN)?" },
+        { "value": 200, "clue": "The technique of randomly switching off neurons during training to fight overfitting.", "answer": "What is dropout?" },
+        { "value": 300, "clue": "Reusing a model trained on one task as the starting point for another.", "answer": "What is transfer learning?" },
+        { "value": 400, "clue": "The architecture behind modern language models, built on attention.", "answer": "What is a transformer?" },
+        { "value": 500, "clue": "When gradients shrink toward zero in deep networks, stalling learning.", "answer": "What is the vanishing gradient problem?" }
+      ]
+    },
+    {
+      "name": "Club Connection",
+      "clues": [
+        { "value": 100, "clue": "The club demo where you draw a digit and the model guesses it.", "answer": "What is the Digit Recognizer?" },
+        { "value": 200, "clue": "The club tool that lets you watch a network's neurons light up layer by layer.", "answer": "What is the Neural Net Visualizer?" },
+        { "value": 300, "clue": "The club demo that sorts a photo into a category using computer vision.", "answer": "What is the Image Classifier?" },
+        { "value": 400, "clue": "The club demo that decides if text is positive or negative.", "answer": "What is the Sentiment Analyzer?" },
+        { "value": 500, "clue": "The GPU model in the club's necron machine that powers the Photo Editor.", "answer": "What is the RTX 5080?" }
+      ]
+    }
+  ]
+}
