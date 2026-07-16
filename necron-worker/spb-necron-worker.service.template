@@ -1,0 +1,21 @@
+[Unit]
+Description=SPB Necron GPU Worker
+After=network-online.target tailscaled.service
+Wants=network-online.target
+
+[Service]
+User=www-data
+WorkingDirectory=/opt/necron-worker
+# Bind to loopback + the private (Tailscale) address ONLY. Never 0.0.0.0: this box
+# is on a home LAN and rents its GPU on vast.ai, so a wildcard bind exposes the
+# worker to both. __BIND_FLAGS__ is filled in by setup.sh / deploy-from-vps.sh.
+#
+# Do NOT add --max-requests: it recycles the worker mid-render and kills long GPU
+# jobs. See setup.md section 3.
+ExecStart=/opt/spb-venv/bin/gunicorn -w 1 __BIND_FLAGS__ --timeout 180 --preload app:app
+Restart=always
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
