@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <link rel="icon" type="image/png" href="/static/logo.png" />
+  <title>Art Style Transfer</title>
+  <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{--bg:#0c1322;--surface:#141f36;--surface-2:#18233c;--border:#22304d;--border-l:#2c3b5e;--text:#e9eef8;--dim:#9fb0cb;--muted:#6e7f9d;--accent:#6494e8;--accent2:#3f74d4;--radius:10px}
+    body{font-family:'Public Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased;line-height:1.6}
+
+    .shell{display:grid;grid-template-columns:280px 1fr;min-height:100vh}
+    .sidebar{background:#0a101c;border-right:1px solid var(--border);padding:2rem 1.5rem;display:flex;flex-direction:column;gap:1.5rem;position:sticky;top:0;height:100vh;overflow-y:auto}
+    .main{padding:2.5rem;display:flex;flex-direction:column;gap:1.75rem}
+
+    .logo{display:flex;align-items:center;gap:.75rem}
+    .logo-icon{width:34px;height:34px;background:#3f74d4;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .logo-name{font-size:.85rem;font-weight:700;line-height:1.2}
+    .logo-sub{font-size:.6rem;color:var(--muted);letter-spacing:.1em;text-transform:uppercase}
+
+    .section-label{font-size:.62rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:.6rem}
+
+    .mode-tabs{display:flex;gap:.3rem}
+    .mode-tab{flex:1;padding:.5rem .4rem;border-radius:7px;font-size:.78rem;font-weight:700;text-align:center;cursor:pointer;border:1px solid var(--border-l,#2c3b5e);color:#9fb0cb;background:#18233c;transition:all .15s;font-family:inherit}
+    .mode-tab.active{background:rgba(63,116,212,.3);border-color:rgba(100,148,232,.5);color:#fff}
+    .style-prompt{width:100%;background:#18233c;border:1px solid #2c3b5e;border-radius:8px;padding:.65rem .75rem;font-size:.84rem;font-family:inherit;color:#e9eef8;resize:vertical;outline:none;line-height:1.55}
+    .style-prompt:focus{border-color:#6494e8}
+    .style-prompt::placeholder{color:#5d6f8f;font-size:.76rem}
+    .ai-template-grid{display:grid;grid-template-columns:1fr 1fr;gap:.3rem}
+    .ai-template{padding:.45rem .5rem;border-radius:6px;border:1px solid #22304d;background:#18233c;font-size:.74rem;font-weight:600;color:#b4c1d8;text-align:center;cursor:pointer;transition:all .15s}
+    .ai-template:hover{color:#fff;border-color:rgba(100,148,232,.5);background:rgba(63,116,212,.15)}
+    .strength-val{font-family:'JetBrains Mono',monospace;font-size:.76rem;color:#6494e8}
+    .strength-note{font-size:.66rem;color:#5d6f8f;line-height:1.5;margin-top:.25rem}
+    input[type=range]{width:100%;accent-color:#3f74d4;cursor:pointer}
+    .hidden{display:none!important}
+    .style-grid{display:grid;grid-template-columns:1fr 1fr;gap:.4rem}
+    .style-opt{padding:.55rem .65rem;border-radius:7px;border:1px solid var(--border);cursor:pointer;transition:all .15s;background:var(--surface-2)}
+    .style-opt:hover{border-color:var(--border-l)}
+    .style-opt.selected{border-color:rgba(63,116,212,.5);background:rgba(63,116,212,.2)}
+    .style-name{font-size:.75rem;font-weight:600;line-height:1.2}
+    .style-desc{font-size:.62rem;color:var(--muted);line-height:1.35;margin-top:.15rem}
+
+    .apply-btn{width:100%;padding:.65rem;background:#3f74d4;color:#fff;border:none;border-radius:8px;font-size:.9rem;font-weight:600;font-family:inherit;cursor:pointer;transition:background .2s}
+    .apply-btn:hover{background:#6494e8}
+    .apply-btn:disabled{opacity:.5;cursor:default}
+
+    /* Main */
+    .main-title{font-size:1.6rem;font-weight:800;letter-spacing:-.025em;margin-bottom:.25rem}
+    .main-sub{font-size:.88rem;color:var(--dim);margin-bottom:.5rem}
+
+    .upload-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+    .card-head{padding:.9rem 1.3rem;border-bottom:1px solid var(--border);font-size:.75rem;font-weight:600;letter-spacing:.04em;color:var(--dim)}
+
+    .drop-zone{border:2px dashed var(--border-l);border-radius:8px;min-height:160px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.65rem;cursor:pointer;transition:all .2s;position:relative;overflow:hidden;margin:1.3rem}
+    .drop-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+    .drop-zone:hover,.drop-zone.drag{border-color:var(--accent);background:rgba(63,116,212,.07)}
+    .drop-title{font-size:.85rem;font-weight:600;color:var(--dim)}
+    .drop-hint{font-size:.72rem;color:var(--muted)}
+
+    .upload-preview{display:none;flex-direction:column;gap:1rem;padding:1.3rem}
+    .img-row{display:flex;gap:1.25rem;align-items:flex-start}
+    .img-box{flex:1;border-radius:8px;overflow:hidden;background:var(--surface-2);min-height:200px;display:flex;align-items:center;justify-content:center;position:relative}
+    .img-box img{max-width:100%;max-height:340px;display:block;object-fit:contain}
+    .img-label{font-size:.65rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:.4rem}
+    .img-placeholder{color:var(--muted);font-size:.8rem;text-align:center;padding:3rem 1rem}
+    .reset-link{font-size:.72rem;color:var(--muted);cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+    .reset-link:hover{color:var(--dim)}
+
+    .download-btn{display:inline-block;padding:.4rem .85rem;background:rgba(63,116,212,.3);border:1px solid rgba(63,116,212,.4);border-radius:6px;font-size:.72rem;font-weight:600;color:var(--text);text-decoration:none;cursor:pointer;transition:all .15s}
+    .download-btn:hover{background:rgba(63,116,212,.5)}
+
+    .spinner{display:inline-block;width:13px;height:13px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:.4rem}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    .processing-overlay{display:none;position:absolute;inset:0;background:rgba(9,9,9,.75);align-items:center;justify-content:center;flex-direction:column;gap:.75rem;font-size:.85rem;color:var(--dim)}
+    .proc-bar-bg{width:70%;max-width:260px;height:6px;background:var(--surface-2);border:1px solid var(--border-l);border-radius:999px;overflow:hidden}
+    .proc-bar{height:100%;width:0%;background:var(--accent2);border-radius:999px;transition:width .8s ease}
+
+    @media(max-width:900px){.shell{grid-template-columns:1fr}.sidebar{position:static;height:auto;border-right:none;border-bottom:1px solid var(--border)}.img-row{flex-direction:column}.main{padding:1.5rem}}
+  </style>
+  <style id="gpu-status-css">
+  .gpu-status-pill{display:inline-flex;align-items:center;gap:.45rem;padding:.28rem .7rem;border-radius:999px;border:1px solid #2c3b5e;background:#141f36;font-size:.72rem;font-weight:600;letter-spacing:.03em;cursor:default;white-space:nowrap}
+  .gpu-status-pill .gd{width:7px;height:7px;border-radius:50%;flex-shrink:0;background:#3d4d6e}
+  .gpu-status-pill .gd.ready{background:#4ade80;box-shadow:0 0 5px #4ade8077;animation:gpuGlow 2s ease-in-out infinite}
+  .gpu-status-pill .gd.busy{background:#fbbf24;box-shadow:0 0 5px #fbbf2477;animation:gpuGlow 1s ease-in-out infinite}
+  .gpu-status-pill .gt{color:#5d6f8f}
+  .gpu-status-pill .gt.ready{color:#4ade80}
+  .gpu-status-pill .gt.busy{color:#fbbf24}
+  @keyframes gpuGlow{0%,100%{opacity:1}50%{opacity:.35}}
+  </style>
+</head>
+<body>
+<div class="shell">
+
+  <aside class="sidebar">
+    <div class="logo" style="margin-bottom:.5rem">
+      <a href="https://spbdatascience.org" title="SPB Data Science Club home" style="display:block;flex-shrink:0"><img src="/static/logo.png" alt="Art Style Transfer" style="width:44px;height:44px;border-radius:9px;object-fit:contain;display:block;flex-shrink:0;" /></a>
+      <div class="logo-name">Art Style Transfer</div>
+    </div>
+    <div class="gpu-status-pill" id="gpuPill"><div class="gd" id="gpuDot"></div><span class="gt" id="gpuTxt">GPUs</span></div>
+
+    <div class="mode-tabs">
+      <button class="mode-tab active" id="tabAI" onclick="setMode('ai')">AI Restyle</button>
+      <button class="mode-tab" id="tabClassic" onclick="setMode('classic')">Classic Filters</button>
+    </div>
+
+    <!-- AI mode: a real diffusion model driven by your words -->
+    <div id="aiPanel">
+      <div class="section-label">Describe Any Style</div>
+      <textarea id="stylePrompt" class="style-prompt" rows="3" maxlength="300"
+                placeholder="Describe a style, for example a stained glass window with glowing jewel tones"
+                oninput="updateApply()"></textarea>
+      <div class="section-label" style="margin-top:.7rem">Templates</div>
+      <div class="ai-template-grid">
+        {% for t in ai_templates %}
+        <div class="ai-template" data-prompt="{{ t.prompt }}" onclick="useTemplate(this)">{{ t.name }}</div>
+        {% endfor %}
+      </div>
+      <div style="margin-top:.8rem">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span class="section-label" style="margin:0">Style Strength</span>
+          <span class="strength-val" id="strengthVal">0.55</span>
+        </div>
+        <input type="range" id="strengthSlider" min="0.3" max="0.9" step="0.05" value="0.55"
+               oninput="document.getElementById('strengthVal').textContent=(+this.value).toFixed(2)"/>
+        <div class="strength-note">Low keeps your photo's structure; high lets the model reimagine it.</div>
+      </div>
+    </div>
+
+    <!-- Classic mode: handcrafted image-processing filters, no GPU needed -->
+    <div id="classicPanel" class="hidden">
+      <div class="section-label">Filter</div>
+      <div class="style-grid">
+        {% for s in styles %}
+        <div class="style-opt {% if loop.first %}selected{% endif %}" data-id="{{ s.id }}" onclick="selectStyle(this)">
+          <div class="style-name">{{ s.name }}</div>
+          <div class="style-desc">{{ s.desc }}</div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <button class="apply-btn" id="applyBtn" onclick="applyStyle()" disabled>Generate</button>
+  </aside>
+
+  <div class="main">
+    <div>
+      <div class="main-title">Art Style Transfer</div>
+      <div class="main-sub">Restyle any photo with a diffusion model on the club's GPUs, or use the classic handcrafted filters</div>
+    </div>
+
+    <div class="upload-card">
+      <div class="card-head">Image</div>
+
+      <div class="drop-zone" id="dropZone"
+           ondragover="event.preventDefault();this.classList.add('drag')"
+           ondragleave="this.classList.remove('drag')"
+           ondrop="handleDrop(event)">
+        <input type="file" accept="image/*" onchange="handleFile(this.files[0])"/>
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+        <div class="drop-title">Drop image or click to browse</div>
+        <div class="drop-hint">JPG, PNG, WEBP, GIF</div>
+      </div>
+
+      <div class="upload-preview" id="uploadPreview">
+        <div class="img-row">
+          <div style="flex:1">
+            <div class="img-label">Original</div>
+            <div class="img-box" id="origBox">
+              <img id="origImg" src="" alt="Original"/>
+            </div>
+          </div>
+          <div style="flex:1">
+            <div class="img-label">Result</div>
+            <div class="img-box" id="resultBox">
+              <div class="img-placeholder" id="resultPlaceholder">Apply a style to see the result</div>
+              <img id="resultImg" src="" alt="Result" style="display:none"/>
+              <div class="processing-overlay" id="processingOverlay">
+                <span class="spinner"></span>
+                <span id="processingTxt">Processing...</span>
+                <div class="proc-bar-bg"><div class="proc-bar" id="procBar"></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div class="reset-link" onclick="resetAll()">Upload a different image</div>
+          <a id="downloadLink" class="download-btn" style="display:none" download="styled.jpg">Download Result</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let currentFile = null;
+let selectedStyle = '{{ styles[0].id }}';
+let mode = 'ai';
+
+function setMode(m) {
+  mode = m;
+  document.getElementById('tabAI').classList.toggle('active', m === 'ai');
+  document.getElementById('tabClassic').classList.toggle('active', m === 'classic');
+  document.getElementById('aiPanel').classList.toggle('hidden', m !== 'ai');
+  document.getElementById('classicPanel').classList.toggle('hidden', m !== 'classic');
+  document.getElementById('applyBtn').textContent = m === 'ai' ? 'Generate' : 'Apply Filter';
+  updateApply();
+}
+
+function useTemplate(el) {
+  document.getElementById('stylePrompt').value = el.dataset.prompt;
+  updateApply();
+}
+
+function updateApply() {
+  const hasPrompt = document.getElementById('stylePrompt').value.trim().length >= 3;
+  document.getElementById('applyBtn').disabled =
+    !currentFile || (mode === 'ai' && !hasPrompt);
+}
+
+function selectStyle(el) {
+  document.querySelectorAll('.style-opt').forEach(o => o.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedStyle = el.dataset.id;
+}
+
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('dropZone').classList.remove('drag');
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith('image/')) handleFile(file);
+}
+
+function handleFile(file) {
+  if (!file) return;
+  currentFile = file;
+  const reader = new FileReader();
+  reader.onload = e => {
+    document.getElementById('origImg').src = e.target.result;
+    document.getElementById('dropZone').style.display = 'none';
+    document.getElementById('uploadPreview').style.display = 'flex';
+    document.getElementById('resultImg').style.display = 'none';
+    document.getElementById('resultImg').src = '';
+    document.getElementById('resultPlaceholder').style.display = '';
+    document.getElementById('downloadLink').style.display = 'none';
+    updateApply();
+  };
+  reader.readAsDataURL(file);
+}
+
+function resetAll() {
+  currentFile = null;
+  document.getElementById('origImg').src = '';
+  document.getElementById('resultImg').src = '';
+  document.getElementById('resultImg').style.display = 'none';
+  document.getElementById('resultPlaceholder').style.display = '';
+  document.getElementById('dropZone').style.display = '';
+  document.getElementById('uploadPreview').style.display = 'none';
+  document.getElementById('downloadLink').style.display = 'none';
+  document.getElementById('applyBtn').disabled = true;
+}
+
+async function applyStyle() {
+  if (!currentFile) return;
+  if (mode === 'ai') return submitAI();
+
+  const btn = document.getElementById('applyBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Processing...';
+  showProcessing(true);
+
+  const form = new FormData();
+  form.append('image', currentFile);
+  form.append('style', selectedStyle);
+
+  try {
+    const res  = await fetch('/api/transform', {method: 'POST', body: form});
+    const data = await res.json();
+    if (data.error) { alert(data.error); return; }
+    showResult('data:image/jpeg;base64,' + data.result, `styled_${selectedStyle}.jpg`);
+  } catch(err) {
+    alert('Request failed; please try again.');
+  } finally {
+    showProcessing(false);
+    btn.disabled = false;
+    btn.textContent = 'Apply Filter';
+    updateApply();
+  }
+}
+
+async function submitAI() {
+  const btn = document.getElementById('applyBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Submitting...';
+  showProcessing(true);
+
+  const form = new FormData();
+  form.append('image', currentFile);
+  form.append('prompt', document.getElementById('stylePrompt').value.trim());
+  form.append('strength', document.getElementById('strengthSlider').value);
+
+  try {
+    const res  = await fetch('/api/restyle', {method: 'POST', body: form});
+    const data = await res.json();
+    if (data.error) { alert(data.error); aiDone(); return; }
+    pollAI(data.job_id);
+  } catch (e) {
+    alert('Could not reach the server; please try again.');
+    aiDone();
+  }
+}
+
+function pollAI(jobId) {
+  const btn = document.getElementById('applyBtn');
+  const t0  = Date.now();
+  const timer = setInterval(async () => {
+    if (Date.now() - t0 > 6 * 60 * 1000) {
+      clearInterval(timer);
+      alert('The render is taking unusually long; please try again shortly.');
+      aiDone();
+      return;
+    }
+    try {
+      const res  = await fetch('/api/job/' + jobId);
+      const data = await res.json();
+      const secs = Math.round((Date.now() - t0) / 1000);
+      if (data.status === 'queued') {
+        btn.innerHTML = '<span class="spinner"></span>In queue' + (data.position > 0 ? ' - #' + data.position : '') + '...';
+        setProcProgress('In queue - ' + secs + 's elapsed', 0);
+      } else if (data.status === 'running') {
+        btn.innerHTML = '<span class="spinner"></span>Generating...';
+        setProcProgress(secs + 's elapsed - ' + (data.progress || 0) + '%', data.progress || 0);
+      } else if (data.status === 'done') {
+        clearInterval(timer);
+        const r    = await fetch('/api/job/' + jobId + '/result');
+        const blob = await r.blob();
+        showResult(URL.createObjectURL(blob), 'ai_restyled.jpg');
+        aiDone();
+      } else if (data.status === 'error') {
+        clearInterval(timer);
+        alert('Generation failed: ' + (data.error || 'unknown error'));
+        aiDone();
+      }
+    } catch (e) { /* transient, keep polling */ }
+  }, 2000);
+}
+
+function aiDone() {
+  showProcessing(false);
+  const btn = document.getElementById('applyBtn');
+  btn.disabled = false;
+  btn.textContent = 'Generate';
+  updateApply();
+}
+
+function setProcProgress(text, pct) {
+  document.getElementById('processingTxt').textContent = text;
+  document.getElementById('procBar').style.width = (pct || 0) + '%';
+}
+
+function showProcessing(on) {
+  document.getElementById('processingOverlay').style.display = on ? 'flex' : 'none';
+  if (on) {
+    setProcProgress('Processing...', 0);
+    document.getElementById('resultImg').style.display = 'none';
+    document.getElementById('resultPlaceholder').style.display = 'none';
+    document.getElementById('downloadLink').style.display = 'none';
+  }
+}
+
+function showResult(src, filename) {
+  document.getElementById('resultImg').src = src;
+  document.getElementById('resultImg').style.display = 'block';
+  const dl = document.getElementById('downloadLink');
+  dl.href = src;
+  dl.download = filename;
+  dl.style.display = 'inline-block';
+}
+</script>
+
+<script id="gpu-status-js">
+(function(){
+  function upd(){
+    fetch('https://spbdatascience.org/api/gpu-status')
+      .then(function(r){return r.json();})
+      .then(function(d){
+        var s=d.status||'offline';
+        var dot=document.getElementById('gpuDot');
+        var txt=document.getElementById('gpuTxt');
+        dot.className='gd '+(s==='ready'||s==='busy'?s:'');
+        txt.className='gt '+(s==='ready'||s==='busy'?s:'');
+        txt.textContent=s==='ready'?'GPUs Online':s==='busy'?'GPUs Busy':'GPUs Offline';
+      }).catch(function(){
+        document.getElementById('gpuTxt').textContent='GPUs Offline';
+      });
+  }
+  upd();setInterval(upd,20000);
+})();
+</script>
+<script src="https://spbdatascience.org/js/gpu-status.js?v=6" defer></script>
+</body>
+</html>
