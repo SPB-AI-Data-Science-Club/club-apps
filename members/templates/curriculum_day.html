@@ -1,0 +1,94 @@
+{% extends 'base.html' %}
+{% block title %}Day {{ d['day'] }} - {{ d['title'] }}{% endblock %}
+{% block head %}<link rel="stylesheet" href="/static/live.css?v=3" />{% endblock %}
+{% block content %}
+<div class="main-header">
+  <a href="/curriculum" style="color:var(--text-muted);text-decoration:none;font-size:.85rem;font-weight:600">&larr; All days</a>
+</div>
+
+<div class="main-content">
+  <div class="day-kicker">Day {{ '%02d' % d['day'] }}</div>
+  <div class="day-head">
+    <h1 class="day-h1">{{ d['title'] }}</h1>
+  </div>
+  <p class="day-lead">{{ d['hook'] }}</p>
+
+  <div class="section-label">What we cover</div>
+  <div class="topic-list">
+    {% for t in d['topics'] %}<span class="topic-pill">{{ t }}</span>{% endfor %}
+  </div>
+
+  <div class="section-label">Activity</div>
+  <div class="activity-panel">
+    <div class="act-title">
+      {% if d['game'] %}<span class="game-badge">Live game</span>{% endif %}
+      {{ d['activity_title'] }}
+    </div>
+    <div class="act-desc">{{ d['activity_desc'] }}</div>
+    <div class="act-actions">
+      {% if d['game'] and current_user and current_user['role'] == 'admin' %}
+        {% if d['game'] == 'jeopardy' %}
+        <a class="btn-launch" href="/games/jeopardy?set={{ d['game_set'] }}" target="_blank" rel="noopener">
+          Launch {{ d['activity_title'] }}
+        </a>
+        {% else %}
+        <form method="post" action="/live/new">
+          <input type="hidden" name="game_type" value="{{ d['game'] }}" />
+          <input type="hidden" name="set_id" value="{{ d['game_set'] }}" />
+          <input type="hidden" name="day" value="{{ d['day'] }}" />
+          <button class="btn-launch" type="submit">Start the live game</button>
+        </form>
+        {% endif %}
+      {% elif d['game'] %}
+        <span class="mini-note" style="margin:0">Your host runs this game in class. When it opens they will read
+          out a code for you to join with.</span>
+      {% endif %}
+      {% if d['tool_url'] %}
+      <a class="btn {% if not d['game'] %}btn-primary{% endif %}" href="{{ d['tool_url'] }}" target="_blank" rel="noopener">
+        Open {{ d['tool_name'] or 'activity' }}
+      </a>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if d['review_set'] %}
+  <div class="section-label">Review game</div>
+  <div class="activity-panel">
+    <div class="act-title"><span class="game-badge">Live game</span> Quick review quiz</div>
+    <div class="act-desc">Close the meeting with a fast Kahoot style quiz on today's ideas. Everyone joins on
+      their own device and races for the top of the leaderboard.</div>
+    {% if current_user and current_user['role'] == 'admin' %}
+    <div class="act-actions">
+      <form method="post" action="/live/new">
+        <input type="hidden" name="game_type" value="quiz" />
+        <input type="hidden" name="set_id" value="{{ d['review_set'] }}" />
+        <input type="hidden" name="day" value="{{ d['day'] }}" />
+        <button class="btn-launch" type="submit">Start the review quiz</button>
+      </form>
+    </div>
+    {% else %}
+    <div class="act-actions"><span class="mini-note" style="margin:0">Your host starts this in class.</span></div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% if current_user and current_user['role'] == 'admin' %}
+  <div class="admin-tools">
+    <div class="card-label">Host tools</div>
+    <p class="mini-note" style="text-align:left;margin:0 0 .8rem">Point this day's activity at a fresh notebook or
+      form for the meeting. Students see this link on the day page.</p>
+    <form method="post" action="/admin/day/{{ d['day'] }}/link" class="link-form">
+      <input class="form-input" name="tool_name" value="{{ d['tool_name'] or '' }}" placeholder="Link label" maxlength="40" />
+      <input class="form-input" name="tool_url" value="{{ d['tool_url'] or '' }}" placeholder="https://..." maxlength="300" />
+      <button class="btn btn-primary" type="submit">Save link</button>
+    </form>
+  </div>
+  {% endif %}
+
+  <div class="day-nav">
+    {% if d['day'] > 1 %}<a href="/curriculum/day/{{ d['day'] - 1 }}">&larr; Day {{ d['day'] - 1 }}</a>{% endif %}
+    <span class="spacer"></span>
+    {% if d['day'] < total %}<a href="/curriculum/day/{{ d['day'] + 1 }}">Day {{ d['day'] + 1 }} &rarr;</a>{% endif %}
+  </div>
+</div>
+{% endblock %}

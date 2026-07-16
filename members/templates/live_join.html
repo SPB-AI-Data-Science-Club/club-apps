@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Join a game - SPB Data Science</title>
+  <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/members.css?v=5" />
+  <link rel="stylesheet" href="/static/live.css?v=3" />
+  <link rel="icon" type="image/png" href="/static/logo.png" />
+  <style>
+    body{background:var(--bg);color:var(--text);font-family:'Public Sans',sans-serif;
+      min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1.5rem}
+  </style>
+</head>
+<body>
+  <div class="join-box card" style="padding:2rem">
+    <img src="/static/logo.png" alt="SPB" style="width:56px;height:56px;border-radius:12px;margin-bottom:.8rem" />
+    <div class="section-label">Join a live game</div>
+    {% if error %}<div class="mini-note" style="color:var(--game-red)">{{ error }}</div>{% endif %}
+    <p style="color:var(--text-dim);margin:.4rem 0 1rem">Enter the code from the projector.</p>
+    <form method="get" action="/live" style="display:flex;flex-direction:column;gap:.9rem">
+      <input class="form-input code-in" name="code" maxlength="5" placeholder="CODE" autocomplete="off"
+             required autofocus />
+      <button class="btn btn-primary btn-big" type="submit">Join</button>
+    </form>
+  </div>
+</body>
+</html>

@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <link rel="icon" type="image/png" href="/static/logo.png" />
+  <title>Photo Editor - SPB Data Science Club</title>
+  <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{--bg:#0c1322;--surface:#141f36;--surface-2:#18233c;--border:#22304d;--border-l:#2c3b5e;--text:#e9eef8;--dim:#b4c1d8;--muted:#6e7f9d;--accent:#6494e8;--accent2:#3f74d4;--radius:10px}
+    body{font-family:'Public Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased;line-height:1.6}
+    .shell{display:grid;grid-template-columns:320px 1fr;min-height:100vh}
+    .sidebar{background:#0a101c;border-right:1px solid var(--border);padding:1.6rem 1.4rem;display:flex;flex-direction:column;gap:1.15rem;position:sticky;top:0;height:100vh;overflow-y:auto}
+    .main{padding:2.25rem 2.5rem;max-width:1100px}
+    .logo{display:flex;align-items:center;gap:.7rem}
+    .logo img{width:38px;height:38px;border-radius:8px}
+    .logo-name{font-size:.95rem;font-weight:700;line-height:1.2}
+    .logo-sub{font-size:.7rem;color:var(--muted)}
+    .section-label{font-size:.65rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:.5rem}
+    .gpu-status-pill{display:inline-flex;align-items:center;gap:.45rem;padding:.28rem .7rem;border-radius:999px;border:1px solid #2c3b5e;background:#141f36;font-size:.72rem;font-weight:600;letter-spacing:.03em;white-space:nowrap;width:fit-content}
+    .gd{width:7px;height:7px;border-radius:50%;flex-shrink:0;background:#3d4d6e}
+    .gd.ready{background:#4ade80;box-shadow:0 0 5px #4ade8077;animation:g 2s ease-in-out infinite}
+    .gd.busy{background:#e3ab47;box-shadow:0 0 5px #e3ab4777}
+    .gd.off{background:#e35d5d}
+    .gt{color:#5d6f8f}.gt.ready{color:#4ade80}.gt.busy{color:#e3ab47}.gt.off{color:#e35d5d}
+    @keyframes g{0%,100%{opacity:1}50%{opacity:.4}}
+    .prompt-input{width:100%;background:var(--surface-2);border:1px solid var(--border-l);border-radius:8px;padding:.7rem .8rem;font-size:.85rem;font-family:inherit;color:var(--text);resize:vertical;outline:none;line-height:1.6;transition:border-color .15s}
+    .prompt-input:focus{border-color:var(--accent)}
+    .prompt-input::placeholder{color:var(--muted);font-size:.78rem}
+    .idea-list{display:flex;flex-direction:column;gap:.3rem}
+    .idea-chip{font-size:.73rem;color:var(--dim);padding:.45rem .65rem;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;cursor:pointer;transition:all .15s;line-height:1.45}
+    .idea-chip:hover{color:var(--text);border-color:rgba(100,148,232,.4)}
+    .aspect-row{display:flex;gap:.4rem}
+    .aspect-opt{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;padding:.55rem .3rem;border-radius:7px;border:1px solid var(--border);background:var(--surface-2);cursor:pointer;font-size:.72rem;color:var(--dim);transition:all .15s}
+    .aspect-opt .ar{margin-bottom:.4rem;border:1.5px solid currentColor;border-radius:2px;opacity:.7}
+    .aspect-opt.sel{border-color:rgba(100,148,232,.6);background:rgba(63,116,212,.16);color:var(--text)}
+    .drop-zone{border:1.5px dashed var(--border-l);border-radius:8px;padding:1rem;text-align:center;cursor:pointer;font-size:.74rem;color:var(--muted);transition:all .15s;background:var(--surface-2)}
+    .drop-zone:hover{border-color:var(--accent);color:var(--dim)}
+    .ref-wrap{position:relative}
+    .ref-wrap img{width:100%;border-radius:8px;display:block}
+    .remove-img{position:absolute;top:.5rem;right:.5rem;width:26px;height:26px;border-radius:50%;background:rgba(0,0,0,.65);border:1px solid #38486e;color:#b4c1d8;font-size:1rem;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center}
+    .remove-img:hover{background:rgba(100,148,232,.8)}
+    .strength-row{font-size:.72rem;color:var(--muted)}
+    input[type=range]{width:100%;accent-color:var(--accent)}
+    .gen-btn{width:100%;padding:.75rem;background:var(--accent2);color:#fff;border:none;border-radius:8px;font-size:.92rem;font-weight:700;font-family:inherit;cursor:pointer;transition:background .2s}
+    .gen-btn:hover:not(:disabled){background:var(--accent)}
+    .gen-btn:disabled{opacity:.5;cursor:default}
+    .note-card{background:rgba(63,116,212,.08);border:1px solid rgba(100,148,232,.3);border-radius:8px;padding:.7rem .85rem;font-size:.72rem;color:var(--dim);line-height:1.55}
+    .note-card strong{color:var(--text)}
+    .main-title{font-size:1.8rem;font-weight:800;letter-spacing:-.028em;margin-bottom:.3rem}
+    .main-sub{font-size:.92rem;color:var(--dim);margin-bottom:1.6rem;max-width:60ch}
+    .stage{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);min-height:60vh;display:flex;align-items:center;justify-content:center;padding:1.5rem;position:relative;overflow:hidden}
+    .stage img.result{max-width:100%;max-height:74vh;border-radius:8px;display:block}
+    .empty{text-align:center;color:var(--muted);font-size:.9rem;max-width:34ch}
+    .empty .big{font-size:2.4rem;margin-bottom:.6rem;opacity:.5}
+    .loading{text-align:center;color:var(--dim)}
+    .spinner{width:42px;height:42px;border:3px solid var(--border-l);border-top-color:var(--accent);border-radius:50%;margin:0 auto 1rem;animation:spin 1s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .bar{width:200px;height:5px;background:var(--border);border-radius:999px;overflow:hidden;margin:.8rem auto 0}
+    .bar span{display:block;height:100%;width:0;background:var(--accent);transition:width .4s ease}
+    .err{color:#f87171;font-size:.85rem;text-align:center;max-width:40ch}
+    .dl-btn{position:absolute;bottom:1rem;right:1rem;display:inline-flex;align-items:center;gap:.4rem;padding:.5rem 1rem;background:rgba(10,16,28,.85);border:1px solid var(--border-l);border-radius:7px;color:var(--text);font-size:.8rem;font-weight:600;cursor:pointer;text-decoration:none}
+    .dl-btn:hover{border-color:var(--accent)}
+    .used-prompt{position:absolute;left:1rem;right:1rem;bottom:1rem;background:rgba(10,16,28,.82);border:1px solid var(--border-l);border-radius:8px;padding:.55rem .7rem;font-size:.72rem;line-height:1.5;color:var(--dim);max-height:38%;overflow:auto}
+    .used-prompt span{display:block;font-size:.6rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:.2rem}
+    .home{font-size:.75rem;color:var(--muted);text-decoration:none}
+    .home:hover{color:var(--dim)}
+    @media(max-width:780px){.shell{grid-template-columns:1fr}.sidebar{position:static;height:auto;border-right:none;border-bottom:1px solid var(--border)}.main{padding:1.5rem}}
+  </style>
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar">
+    <div class="logo">
+      <img src="/static/logo.png" alt="logo"/>
+      <div><div class="logo-name">Photo Editor</div><div class="logo-sub">SPB AI &amp; Data Science Club</div></div>
+    </div>
+    <div class="gpu-status-pill" id="gpuPill"><span class="gd" id="gpuDot"></span><span class="gt" id="gpuTxt">GPUs</span></div>
+
+    <div>
+      <div class="section-label">Prompt</div>
+      <textarea id="prompt" class="prompt-input" rows="4" maxlength="500" placeholder="Describe the photo you want, e.g. a candid portrait of a fox in a snowy forest, soft morning light, 85mm"></textarea>
+    </div>
+
+    <div>
+      <div class="section-label">Ideas</div>
+      <div class="idea-list">
+        {% for idea in ideas %}<div class="idea-chip" onclick="useIdea(this)">{{ idea }}</div>{% endfor %}
+      </div>
+    </div>
+
+    <div>
+      <div class="section-label">Shape</div>
+      <div class="aspect-row" id="aspectRow">
+        <div class="aspect-opt sel" data-a="square"><span class="ar" style="width:20px;height:20px"></span>Square</div>
+        <div class="aspect-opt" data-a="portrait"><span class="ar" style="width:15px;height:21px"></span>Portrait</div>
+        <div class="aspect-opt" data-a="landscape"><span class="ar" style="width:24px;height:15px"></span>Landscape</div>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-label">Reference image (optional)</div>
+      <input type="file" id="file" accept="image/*" style="display:none" onchange="onFile(this.files[0])"/>
+      <div class="drop-zone" id="drop" onclick="document.getElementById('file').click()">Drop a photo or click to upload. The prompt will reshape it.</div>
+      <div id="refWrap" style="display:none;margin-top:.6rem">
+        <div class="ref-wrap"><img id="refImg" alt="reference"/><button class="remove-img" onclick="clearRef()">&times;</button></div>
+        <div class="strength-row" style="margin-top:.5rem">
+          How much to change it: <span id="sVal">moderate</span>
+          <input type="range" id="strength" min="25" max="85" value="60" oninput="onStrength()"/>
+        </div>
+      </div>
+    </div>
+
+    <button class="gen-btn" id="genBtn" onclick="generate()">Generate photo</button>
+
+    <div class="note-card">
+      <strong>Use responsibly.</strong> Do not create realistic images of real people without their consent, and never anything harmful, explicit, or deceptive. Generated photos can look real, which is exactly why media literacy matters.
+    </div>
+    <a class="home" href="https://spbdatascience.org">&larr; Back to club home</a>
+  </aside>
+
+  <main class="main">
+    <h1 class="main-title">Photo Editor</h1>
+    <p class="main-sub">Generate a high-quality, photorealistic image from a description. Add a reference photo to guide it, and a diffusion model renders it on the club's GPU servers.</p>
+    <div class="stage" id="stage">
+      <div class="empty" id="empty"><div class="big">&#9788;</div>Write a prompt and click Generate. Your photo appears here.</div>
+    </div>
+  </main>
+</div>
+
+<script>
+var aspect = 'square', refFile = null;
+
+function useIdea(el){ document.getElementById('prompt').value = el.textContent.trim(); }
+
+document.getElementById('aspectRow').addEventListener('click', function(e){
+  var o = e.target.closest('.aspect-opt'); if(!o) return;
+  document.querySelectorAll('.aspect-opt').forEach(function(x){x.classList.remove('sel');});
+  o.classList.add('sel'); aspect = o.dataset.a;
+});
+
+var drop = document.getElementById('drop');
+['dragover','dragenter'].forEach(function(ev){drop.addEventListener(ev,function(e){e.preventDefault();drop.style.borderColor='var(--accent)';});});
+['dragleave','drop'].forEach(function(ev){drop.addEventListener(ev,function(e){e.preventDefault();drop.style.borderColor='';});});
+drop.addEventListener('drop', function(e){ if(e.dataTransfer.files[0]) onFile(e.dataTransfer.files[0]); });
+
+function onFile(f){
+  if(!f || !f.type.startsWith('image/')){ alert('Please choose an image file.'); return; }
+  if(f.size > 16*1024*1024){ alert('Image is larger than 16 MB; please choose a smaller one.'); return; }
+  refFile = f;
+  document.getElementById('refImg').src = URL.createObjectURL(f);
+  document.getElementById('drop').style.display = 'none';
+  document.getElementById('refWrap').style.display = 'block';
+}
+function clearRef(){
+  refFile = null;
+  document.getElementById('file').value = '';
+  document.getElementById('refWrap').style.display = 'none';
+  document.getElementById('drop').style.display = 'block';
+}
+function onStrength(){
+  var v = +document.getElementById('strength').value;
+  document.getElementById('sVal').textContent = v < 40 ? 'subtle' : v < 65 ? 'moderate' : 'strong';
+}
+
+function setStage(html){ document.getElementById('stage').innerHTML = html; }
+
+// GPU pill (live status, usage bars, tap-for-details popup) is driven by the
+// shared site-wide embed loaded at the end of the page, so this tool shows the
+// exact same status as every other page instead of a bespoke Online/Offline dot.
+
+var busy = false;
+async function generate(){
+  if(busy) return;
+  var prompt = document.getElementById('prompt').value.trim();
+  if(prompt.length < 4){ alert('Write a longer description first.'); return; }
+  busy = true;
+  var btn = document.getElementById('genBtn'); btn.disabled = true; btn.textContent = 'Generating…';
+  setStage('<div class="loading"><div class="spinner"></div>Generating your photo&hellip;<div class="bar"><span id="pbar"></span></div></div>');
+
+  var form = new FormData();
+  form.append('prompt', prompt);
+  form.append('aspect', aspect);
+  if(refFile){ form.append('image', refFile); form.append('strength', (+document.getElementById('strength').value/100).toFixed(2)); }
+
+  try{
+    var res = await fetch('/api/generate', {method:'POST', body:form});
+    var data = await res.json();
+    if(!res.ok || data.error){ throw new Error(data.error || 'Generation failed.'); }
+    var jid = data.job_id;
+    while(true){
+      await new Promise(function(r){setTimeout(r, 1200);});
+      var jr = await fetch('/api/job/'+jid); var js = await jr.json();
+      var pb = document.getElementById('pbar'); if(pb) pb.style.width = (js.progress||0)+'%';
+      if(js.status === 'done') break;
+      if(js.status === 'error'){ throw new Error(js.error || 'Generation failed.'); }
+    }
+    var url = '/api/job/'+jid+'/result?t='+Date.now();
+    var used = (js.enhanced && js.enhanced.trim()) ?
+      '<div class="used-prompt"><span>Prompt used</span>'+
+      js.enhanced.replace(/[<>]/g,'')+'</div>' : '';
+    setStage('<img class="result" src="'+url+'" alt="generated photo"/>' +
+             '<a class="dl-btn" href="'+url+'" download="spb-photo.jpg">&#8681; Download</a>' + used);
+  }catch(e){
+    setStage('<div class="err">'+ (e.message || 'Something went wrong.') +'</div>');
+  }finally{
+    busy = false; btn.disabled = false; btn.textContent = 'Generate photo';
+  }
+}
+</script>
+<!-- Shared GPU status embed: same live pill + popup as the main site, so the
+     status shown here matches every other page (busy/usage/offline + details). -->
+<script src="https://spbdatascience.org/js/gpu-status.js?v=22" defer></script>
+</body>
+</html>

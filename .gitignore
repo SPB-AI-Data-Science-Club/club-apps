@@ -1,0 +1,33 @@
+# --- SECRETS / DATA — never commit these ---
+.env
+.env.*
+*.env
+config.js
+client_secret*.json
+*.pem
+*.key
+id_*
+authorized_keys
+# databases (member data / PII)
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+# caches / runtime / deps
+__pycache__/
+*.pyc
+venv/
+.venv/
+node_modules/
+backups/
+*.log
+.DS_Store
+# model caches / weights (re-downloadable, too big for git)
+.hf_cache/
+hf_cache/
+**/hub/
+**/models--*/
+**/blobs/
+**/snapshots/
+*.gguf

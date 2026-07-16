@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Boosting Lab - SPB Data Science</title>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
+<style>
+:root{--bg:#0c1322;--surface:#141f36;--s2:#18233c;--border:#22304d;--bl:#2c3b5e;--acc:#3f74d4;
+  --accl:#6494e8;--gold:#f2c14e;--green:#4ade80;--red:#f87171;--text:#e9eef8;--dim:#9fb0cb;--mut:#6e7f9d}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Public Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:20px}
+.wrap{max-width:860px;margin:0 auto}
+h1{font-size:1.3rem;font-weight:800;margin-bottom:.3rem}
+.sub{color:var(--dim);font-size:.9rem;line-height:1.5;margin-bottom:1.1rem;max-width:62ch}
+.grid{display:grid;grid-template-columns:1.4fr 1fr;gap:.8rem}
+@media(max-width:680px){.grid{grid-template-columns:1fr}}
+canvas{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:12px;display:block}
+.row{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;margin:1rem 0}
+.row label{font-size:.8rem;font-weight:700;color:var(--dim)}
+input[type=range]{flex:1;min-width:120px;accent-color:var(--acc)}
+button{font-family:inherit;cursor:pointer;border:none;border-radius:8px;padding:.55rem 1rem;font-weight:700;font-size:.9rem}
+.bp{background:var(--acc);color:#fff}.bp:hover{background:var(--accl)}.bg{background:var(--gold);color:#1a1305}
+.bs{background:var(--s2);color:var(--text);border:1px solid var(--bl)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:.6rem;margin-top:.6rem}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:.7rem;text-align:center}
+.stat .v{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:1.25rem}
+.stat .k{font-size:.68rem;text-transform:uppercase;letter-spacing:.05em;color:var(--mut);margin-top:.15rem}
+.stat.test .v{color:var(--gold)}
+#banner{margin-top:.9rem;padding:.8rem 1rem;border-radius:10px;font-weight:700;display:none;line-height:1.4}
+.win{background:rgba(74,222,128,.12);border:1px solid rgba(74,222,128,.4);color:var(--green)}
+.warn{background:rgba(242,193,78,.12);border:1px solid rgba(242,193,78,.4);color:var(--gold)}
+.note{color:var(--mut);font-size:.78rem;margin-top:1rem;line-height:1.5}
+.legend{display:flex;gap:1.2rem;color:var(--dim);font-size:.78rem;margin-top:.5rem;flex-wrap:wrap}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Boosting, One Tiny Tree at a Time</h1>
+  <p class="sub">Boosting builds a team of weak learners where each new stump only tries to fix what the team got
+    wrong so far. Add trees and watch the green fit snap onto the data as the leftover error, the residual, shrinks.
+    Race to get the training error under the target line in the fewest trees. Add too many and the test error
+    starts creeping back up, which is overfitting sneaking in.</p>
+
+  <div class="grid">
+    <div><canvas id="fit" width="520" height="360"></canvas>
+      <div class="legend"><span><span class="dot" style="background:#6494e8"></span>Data</span>
+        <span><span class="dot" style="background:#4ade80"></span>Ensemble</span></div></div>
+    <div><canvas id="res" width="360" height="360"></canvas>
+      <div class="legend"><span>Residuals the next tree will chase</span></div></div>
+  </div>
+
+  <div class="row">
+    <label>Learning rate</label>
+    <input type="range" id="lr" min="0.1" max="1" step="0.1" value="0.4" />
+    <span class="mono" id="lrShow" style="color:var(--gold);font-weight:700">0.4</span>
+    <button class="bp" id="addBtn">Add a tree</button>
+    <button class="bg" id="add10Btn">Add 10</button>
+    <button class="bs" id="resetBtn">Reset</button>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="v mono" id="nTrees">0</div><div class="k">Trees</div></div>
+    <div class="stat"><div class="v mono" id="trainE">-</div><div class="k">Train error</div></div>
+    <div class="stat test"><div class="v mono" id="testE">-</div><div class="k">Test error</div></div>
+  </div>
+  <div id="banner"></div>
+  <p class="note">Each stump makes a single split and predicts a flat value on each side. Alone it is almost
+    useless. Hundreds of them, each nudging the last, is roughly how XGBoost wins competitions.</p>
+</div>
+
+<script>
+let seed = 42;
+const rnd = () => { seed = (seed*1103515245 + 12345) % 2147483648; return seed/2147483648; };
+const truth = x => Math.sin(x*3) * 1.1 + 0.4*x;
+let train = [], test = [];
+function makeData(){
+  train = []; test = [];
+  for(let i=0;i<28;i++){ const x=-2+4*i/27; train.push([x, truth(x)+(rnd()-.5)*.5]); }
+  for(let i=0;i<20;i++){ const x=-1.9+3.8*i/19; test.push([x, truth(x)+(rnd()-.5)*.5]); }
+}
+let trees = [], LR = 0.4;
+const TARGET = 0.12;
+
+// Fit one regression stump to residuals: find the split minimizing squared error.
+function fitStump(pts, resid){
+  let best = null;
+  const xs = pts.map(p=>p[0]).slice().sort((a,b)=>a-b);
+  for(let i=0;i<xs.length-1;i++){
+    const thr = (xs[i]+xs[i+1])/2;
+    let lS=0,lN=0,rS=0,rN=0;
+    pts.forEach((p,k)=>{ if(p[0]<thr){lS+=resid[k];lN++;} else {rS+=resid[k];rN++;} });
+    if(!lN||!rN) continue;
+    const lM=lS/lN, rM=rS/rN;
+    let err=0; pts.forEach((p,k)=>{ err += (resid[k]-(p[0]<thr?lM:rM))**2; });
+    if(!best || err<best.err) best = {thr, lM, rM, err};
+  }
+  return best;
+}
+const predict = x => trees.reduce((s,t)=> s + LR*(x<t.thr?t.lM:t.rM), 0);
+const mse = pts => pts.reduce((s,[x,y])=>s+(predict(x)-y)**2,0)/pts.length;
+
+function addTree(){
+  const resid = train.map(([x,y]) => y - predict(x));
+  const st = fitStump(train, resid);
+  if(st) trees.push(st);
+  refresh();
+}
+
+const fc = document.getElementById('fit'), fx = fc.getContext('2d');
+const rc = document.getElementById('res'), rx = rc.getContext('2d');
+const XMIN=-2.2,XMAX=2.2,YMIN=-2.4,YMAX=2.4;
+const fpx=x=>(x-XMIN)/(XMAX-XMIN)*fc.width, fpy=y=>fc.height-(y-YMIN)/(YMAX-YMIN)*fc.height;
+
+function drawFit(){
+  fx.clearRect(0,0,fc.width,fc.height);
+  fx.strokeStyle='#22304d'; fx.beginPath(); fx.moveTo(0,fpy(0)); fx.lineTo(fc.width,fpy(0)); fx.stroke();
+  fx.strokeStyle='#4ade80'; fx.lineWidth=2.5; fx.beginPath();
+  for(let i=0;i<=260;i++){ const x=XMIN+(XMAX-XMIN)*i/260, y=Math.max(YMIN,Math.min(YMAX,predict(x)));
+    i?fx.lineTo(fpx(x),fpy(y)):fx.moveTo(fpx(x),fpy(y)); }
+  fx.stroke();
+  train.forEach(([x,y])=>{ fx.fillStyle='#6494e8'; fx.beginPath(); fx.arc(fpx(x),fpy(y),5,0,7); fx.fill(); });
+}
+function drawResid(){
+  rx.clearRect(0,0,rc.width,rc.height);
+  const rpx=x=>(x-XMIN)/(XMAX-XMIN)*rc.width, mid=rc.height/2;
+  rx.strokeStyle='#2c3b5e'; rx.beginPath(); rx.moveTo(0,mid); rx.lineTo(rc.width,mid); rx.stroke();
+  train.forEach(([x,y])=>{
+    const r=y-predict(x), h=r*55;
+    rx.strokeStyle = r>=0 ? '#f2c14e' : '#f87171'; rx.lineWidth=2;
+    rx.beginPath(); rx.moveTo(rpx(x),mid); rx.lineTo(rpx(x),mid-h); rx.stroke();
+    rx.fillStyle = r>=0 ? '#f2c14e' : '#f87171'; rx.beginPath(); rx.arc(rpx(x),mid-h,3,0,7); rx.fill();
+  });
+}
+function refresh(){
+  const tr=mse(train), te=mse(test);
+  document.getElementById('nTrees').textContent = trees.length;
+  document.getElementById('trainE').textContent = tr.toFixed(3);
+  document.getElementById('testE').textContent = te.toFixed(3);
+  drawFit(); drawResid();
+  const b = document.getElementById('banner');
+  window._bestTest = Math.min(window._bestTest ?? 9, te);
+  if(tr < TARGET){ b.style.display='block'; b.className='win';
+    b.textContent = 'Train error under target in ' + trees.length + ' trees. That is your score, lower trees is better.'; }
+  else if(te > window._bestTest + 0.05 && trees.length > 8){ b.style.display='block'; b.className='warn';
+    b.textContent = 'Heads up, test error is rising while train keeps falling. The ensemble is starting to memorize noise.'; }
+  else b.style.display='none';
+}
+document.getElementById('lr').oninput = e => { LR=+e.target.value; document.getElementById('lrShow').textContent=LR.toFixed(1); refresh(); };
+document.getElementById('addBtn').onclick = addTree;
+document.getElementById('add10Btn').onclick = () => { for(let i=0;i<10;i++) addTree(); };
+document.getElementById('resetBtn').onclick = () => { trees=[]; window._bestTest=9; makeData(); refresh(); };
+makeData(); refresh();
+</script>
+</body>
+</html>

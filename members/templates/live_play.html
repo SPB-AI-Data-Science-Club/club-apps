@@ -1,0 +1,170 @@
+{% extends 'base.html' %}
+{% block title %}{{ sess['title'] }}{% endblock %}
+{% block head %}<link rel="stylesheet" href="/static/live.css?v=3" />{% endblock %}
+{% block content %}
+<div class="main-content">
+  <div id="youbar" class="play-you" style="display:none">
+    <span class="nm" id="youName"></span><span class="sc" id="youScore">0</span>
+  </div>
+
+  <div class="play-wrap" id="stage"></div>
+</div>
+
+<script>
+const CODE = "{{ sess['code'] }}";
+const GTYPE = "{{ sess['game_type'] }}";
+const JOINED = {{ 'true' if me else 'false' }};
+const PREFILL = "{{ user_name | e }}";
+const OPT_CLASS = ["opt-a","opt-b","opt-c","opt-d","opt-a","opt-b"];
+const OPT_LETTER = ["A","B","C","D","E","F"];
+let joined = JOINED, myScore = 0, lastPhase = "", lastQ = -1, answeredQ = -1, curWager = 100;
+
+function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function el(){return document.getElementById("stage");}
+
+function joinScreen(err){
+  el().innerHTML = `
+    <div class="play-head"><div class="ttl">Join the game</div>
+      <div class="sub">Code ${esc(CODE)}</div></div>
+    ${err?`<div class="mini-note" style="color:var(--game-red)">${esc(err)}</div>`:''}
+    <div style="display:flex;flex-direction:column;gap:.8rem;margin-top:1rem">
+      <input class="form-input" id="jn" maxlength="24" placeholder="Your name" value="${esc(PREFILL)}" />
+      <input class="form-input" id="jt" maxlength="24" placeholder="Team (optional)" />
+      <button class="btn btn-primary btn-big" onclick="doJoin()">Join</button>
+    </div>`;
+}
+
+async function doJoin(){
+  const name = document.getElementById("jn").value.trim();
+  const team = document.getElementById("jt").value.trim();
+  if(!name){ joinScreen("Enter a name to join."); return; }
+  const body = new URLSearchParams({name, team});
+  const r = await fetch(`/live/${CODE}/join`, {method:"POST", body});
+  const j = await r.json();
+  if(j.ok){ joined = true; poll(true); }
+  else joinScreen(j.error || "Could not join.");
+}
+
+function waiting(msg, sub){
+  return `<div class="big-status"><div class="msg">${esc(msg)}</div>
+    ${sub?`<div class="sub">${esc(sub)}</div>`:''}</div>`;
+}
+
+async function sendAnswer(answer, wager){
+  const payload = {answer:String(answer)};
+  if(wager!=null) payload.wager = wager;
+  const r = await fetch(`/api/live/${CODE}/answer`, {
+    method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(payload)});
+  const j = await r.json();
+  if(j.ok){ answeredQ = lastQ; renderAnswered(); }
+  else if(j.error && j.error!=="already" && j.error!=="closed"){
+    document.getElementById("errline") && (document.getElementById("errline").textContent = j.error);
+  } else { answeredQ = lastQ; renderAnswered(); }
+}
+
+function renderAnswered(){
+  el().innerHTML = waiting("Locked in", "Hang tight while everyone answers.");
+}
+
+function quizButtons(q){
+  return `<div class="opt-grid">` + (q.options||[]).map((o,i)=>`
+    <button class="opt-btn ${OPT_CLASS[i]}" onclick="sendAnswer(${i})">${esc(o)}</button>`).join("") + `</div>`;
+}
+
+function wagerScreen(q){
+  const cap = Math.max(100, myScore>100?myScore:100);
+  curWager = Math.min(curWager, cap);
+  return `
+    <div class="play-head"><div class="ttl">${esc(q.q)}</div>
+      ${q.note?`<div class="sub">${esc(q.note)}</div>`:''}</div>
+    <div class="wager-val" id="wv">Wager ${curWager}</div>
+    <input class="wager-slider" type="range" min="100" max="${cap}" step="50" value="${curWager}"
+      oninput="curWager=+this.value;document.getElementById('wv').textContent='Wager '+curWager" />
+    <div class="mini-note">Pick your answer to lock in the wager</div>
+    <div class="opt-grid" style="margin-top:.6rem">` + (q.options||[]).map((o,i)=>`
+      <button class="opt-btn ${OPT_CLASS[i]}" onclick="sendAnswer(${i}, curWager)">${esc(o)}</button>`).join("") + `</div>`;
+}
+
+function numberScreen(q){
+  return `
+    <div class="play-head"><div class="ttl">${esc(q.q)}</div></div>
+    <input class="num-in" id="numin" inputmode="decimal" placeholder="Your guess${q.unit?' ('+esc(q.unit)+')':''}" />
+    <div id="errline" class="mini-note" style="color:var(--game-red)"></div>
+    <button class="btn btn-primary btn-big" style="width:100%;margin-top:.8rem"
+      onclick="sendAnswer(document.getElementById('numin').value)">Submit</button>`;
+}
+
+function questionScreen(d){
+  const q = d.question;
+  if(d.answered || answeredQ === d.q_index){ renderAnswered(); return; }
+  if(GTYPE === "poll") el().innerHTML = numberScreen(q);
+  else if(GTYPE === "wager") el().innerHTML = wagerScreen(q);
+  else el().innerHTML = quizButtons(q);
+}
+
+function revealScreen(d){
+  const r = d.result;
+  let head = "";
+  if(r){
+    const good = r.correct;
+    head = `<div class="result-card ${good?'right':'wrong'}">
+      <div class="rmsg">${good?'Correct':'Not this time'}</div>
+      <div class="pts">${r.points>=0?'+':''}${r.points} points</div></div>`;
+  } else if(GTYPE==="poll" && d.reveal && d.reveal.poll){
+    const p = d.reveal.poll;
+    head = `<div class="result-card ${'right'}">
+      <div class="rmsg">True answer ${esc(d.reveal.answer)}</div>
+      <div class="pts">Crowd guessed ${esc(p.avg)}</div></div>`;
+  } else {
+    head = waiting("Answer revealed", "");
+  }
+  const lb = d.leaderboard || [];
+  const board = lb.length ? `<div class="section-label">Top players</div><div class="board-list">` +
+    lb.slice(0,5).map((x,i)=>`<div class="board-row ${i===0?'top1':''}">
+      <span class="rank">${i+1}</span><span class="nm">${esc(x.name)}</span>
+      <span class="sc">${x.score}</span></div>`).join("") + `</div>` : "";
+  el().innerHTML = head + board;
+}
+
+function podiumScreen(d){
+  const lb = d.leaderboard || [];
+  const mine = lb.findIndex(x=>x.name === d.name) ;
+  el().innerHTML = `
+    <div class="play-head"><div class="ttl">That is a wrap</div>
+      <div class="sub">${d.title}</div></div>
+    ${mine>=0?`<div class="result-card right"><div class="rmsg">You finished #${mine+1}</div>
+      <div class="pts">${lb[mine].score} points</div></div>`:''}
+    <div class="board-list">` + lb.slice(0,10).map((x,i)=>`
+      <div class="board-row ${i===0?'top1':''}"><span class="rank">${i+1}</span>
+      <span class="nm">${esc(x.name)}</span><span class="sc">${x.score}</span></div>`).join("") + `</div>
+    <div style="text-align:center;margin-top:1.2rem"><a class="btn" href="/games">Back to games</a></div>`;
+}
+
+async function poll(force){
+  if(!joined){ joinScreen(); return; }
+  let d;
+  try{ d = await (await fetch(`/api/live/${CODE}?t=`+Date.now())).json(); }
+  catch(e){ return; }
+  if(!d.ok){ el().innerHTML = waiting("Game closed", "Ask your host for a new code."); return; }
+  if(!d.joined){ joined=false; joinScreen(); return; }
+
+  myScore = d.score || 0;
+  document.getElementById("youbar").style.display = "flex";
+  document.getElementById("youName").textContent = d.name;
+  document.getElementById("youScore").textContent = myScore;
+
+  const key = d.phase + ":" + d.q_index + ":" + (d.answered?1:0);
+  if(!force && key === window.__lastKey) return;
+  window.__lastKey = key;
+
+  if(d.status === "lobby") el().innerHTML = waiting("You are in", "Waiting for the host to start.");
+  else if(d.phase === "podium") podiumScreen(d);
+  else if(d.phase === "reveal") revealScreen(d);
+  else if(d.phase === "question") questionScreen(d);
+  else el().innerHTML = waiting("Get ready", "Next question is coming up.");
+}
+
+poll(true);
+setInterval(poll, 1000);
+</script>
+{% endblock %}

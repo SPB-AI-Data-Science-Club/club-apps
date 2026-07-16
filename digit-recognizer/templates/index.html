@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <link rel="icon" type="image/png" href="/static/logo.png" />
+  <title>Digit Recognizer - SPB Data Science Club</title>
+  <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{--bg:#0c1322;--surface:#141f36;--surface-2:#18233c;--border:#22304d;--border-l:#2c3b5e;--text:#e9eef8;--dim:#b4c1d8;--muted:#6e7f9d;--accent:#6494e8;--accent2:#3f74d4;--radius:10px}
+    body{font-family:'Public Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased;line-height:1.6}
+
+    .shell{display:grid;grid-template-columns:300px 1fr;min-height:100vh}
+    .sidebar{background:#0a101c;border-right:1px solid var(--border);padding:1.75rem 1.4rem;display:flex;flex-direction:column;gap:1.3rem;position:sticky;top:0;height:100vh;overflow-y:auto}
+    .main{padding:2.25rem 2.5rem;display:flex;flex-direction:column;align-items:center}
+
+    .logo{display:flex;align-items:center;gap:.75rem}
+    .logo-name{font-size:.95rem;font-weight:700;line-height:1.25}
+
+    .section-label{font-size:.65rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:.55rem}
+
+    .info-card{background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:.85rem 1rem;font-size:.78rem;color:var(--dim);line-height:1.65}
+    .info-card strong{color:var(--text);font-weight:600}
+
+    .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:.4rem}
+    .stat-chip{background:var(--surface-2);border:1px solid var(--border);border-radius:7px;padding:.55rem .65rem;text-align:center}
+    .stat-chip-val{font-family:'JetBrains Mono',monospace;font-size:.85rem;font-weight:600;color:#6494e8}
+    .stat-chip-lbl{font-size:.58rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-top:.1rem}
+
+    .how-list{font-size:.76rem;color:var(--dim);line-height:1.7;padding-left:1rem}
+    .how-list li{margin-bottom:.35rem}
+
+    .main-title{font-size:1.75rem;font-weight:800;letter-spacing:-.028em;margin-bottom:.3rem;align-self:flex-start}
+    .main-sub{font-size:.92rem;color:var(--dim);margin-bottom:2rem;align-self:flex-start}
+
+    .work-row{display:grid;grid-template-columns:auto 1fr;gap:2rem;width:100%;max-width:860px;align-items:start}
+
+    .canvas-col{display:flex;flex-direction:column;gap:.85rem}
+    .draw-wrap{position:relative;border-radius:var(--radius);overflow:hidden;border:1px solid var(--border-l);background:#000}
+    #drawCanvas{display:block;cursor:crosshair;touch-action:none}
+    .canvas-hint{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#38486e;font-size:.95rem;pointer-events:none;transition:opacity .3s}
+    .canvas-hint.hidden{opacity:0}
+
+    .btn-row{display:flex;gap:.6rem}
+    .btn{flex:1;padding:.65rem;border:none;border-radius:8px;font-size:.88rem;font-weight:600;font-family:inherit;cursor:pointer;transition:background .2s}
+    .btn-clear{background:var(--surface-2);color:var(--dim);border:1px solid var(--border-l)}
+    .btn-clear:hover{color:var(--text);border-color:#38486e}
+
+    .preview-row{display:flex;align-items:center;gap:.75rem}
+    .preview-label{font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+    #miniCanvas{border:1px solid var(--border-l);border-radius:6px;image-rendering:pixelated;background:#000}
+
+    .result-col{display:flex;flex-direction:column;gap:1rem}
+    .big-result{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.5rem 1.75rem;display:flex;align-items:center;gap:1.5rem;min-height:118px}
+    .big-digit{font-size:3.6rem;font-weight:800;font-family:'JetBrains Mono',monospace;color:#6494e8;line-height:1;min-width:60px;text-align:center}
+    .big-meta{flex:1}
+    .big-conf{font-size:1.05rem;font-weight:700}
+    .big-sub{font-size:.78rem;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-top:.2rem}
+    .big-empty{color:var(--muted);font-size:.9rem}
+
+    .dist-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.25rem 1.5rem}
+    .dist-title{font-size:.65rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:1rem}
+    .dist-row{display:grid;grid-template-columns:18px 1fr 52px;align-items:center;gap:.75rem;margin-bottom:.45rem}
+    .dist-digit{font-family:'JetBrains Mono',monospace;font-size:.85rem;font-weight:600;color:var(--dim);text-align:center}
+    .dist-bar-bg{height:9px;background:var(--surface-2);border-radius:999px;overflow:hidden}
+    .dist-bar{height:100%;border-radius:999px;background:#38486e;transition:width .35s ease,background .35s}
+    .dist-bar.top{background:linear-gradient(90deg,var(--accent2),#6494e8)}
+    .dist-pct{font-family:'JetBrains Mono',monospace;font-size:.74rem;color:var(--muted);text-align:right}
+    .dist-pct.top{color:#6494e8;font-weight:600}
+
+    @media(max-width:860px){.shell{grid-template-columns:1fr}.sidebar{position:static;height:auto;border-right:none;border-bottom:1px solid var(--border)}.work-row{grid-template-columns:1fr}.main{padding:1.5rem}}
+
+    .gpu-status-pill{display:inline-flex;align-items:center;gap:.45rem;padding:.28rem .7rem;border-radius:999px;border:1px solid #2c3b5e;background:#141f36;font-size:.72rem;font-weight:600;letter-spacing:.03em;cursor:default;white-space:nowrap;width:fit-content}
+    .gpu-status-pill .gd{width:7px;height:7px;border-radius:50%;flex-shrink:0;background:#3d4d6e}
+    .gpu-status-pill .gd.ready{background:#4ade80;box-shadow:0 0 5px #4ade8077;animation:gpuGlow 2s ease-in-out infinite}
+    .gpu-status-pill .gd.busy{background:#fbbf24;box-shadow:0 0 5px #fbbf2477;animation:gpuGlow 1s ease-in-out infinite}
+    .gpu-status-pill .gt{color:#5d6f8f}
+    .gpu-status-pill .gt.ready{color:#4ade80}
+    .gpu-status-pill .gt.busy{color:#fbbf24}
+    @keyframes gpuGlow{0%,100%{opacity:1}50%{opacity:.35}}
+  </style>
+</head>
+<body>
+<div class="shell">
+
+  <aside class="sidebar">
+    <div class="logo">
+      <a href="https://spbdatascience.org" title="SPB Data Science Club home" style="display:block;flex-shrink:0"><img src="/static/logo.png" alt="Digit Recognizer" style="width:44px;height:44px;border-radius:9px;object-fit:contain;display:block;flex-shrink:0"/></a>
+      <div class="logo-name">Digit Recognizer</div>
+    </div>
+
+    <div class="gpu-status-pill" id="gpuPill"><div class="gd" id="gpuDot"></div><span class="gt" id="gpuTxt">GPUs</span></div>
+
+    <div>
+      <div class="section-label">Model</div>
+      <div class="stat-grid">
+        <div class="stat-chip"><div class="stat-chip-val" id="statAcc">--</div><div class="stat-chip-lbl">Test Accuracy</div></div>
+        <div class="stat-chip"><div class="stat-chip-val" id="statParams">--</div><div class="stat-chip-lbl">Parameters</div></div>
+        <div class="stat-chip"><div class="stat-chip-val" id="statMs">--</div><div class="stat-chip-lbl">Inference</div></div>
+        <div class="stat-chip"><div class="stat-chip-val">CPU</div><div class="stat-chip-lbl">Device</div></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-label">How It Works</div>
+      <ol class="how-list">
+        <li>Your strokes are cropped to their bounding box</li>
+        <li>Scaled to 20x20 and centered by pixel mass in a 28x28 field, exactly how MNIST digits are normalized</li>
+        <li>A convolutional network maps the image to 10 class scores</li>
+        <li>Softmax turns scores into the probability bars on the right</li>
+      </ol>
+    </div>
+
+    <div class="info-card">
+      <strong>Architecture.</strong> Two 3x3 convolution blocks (16 and 32 filters) with max pooling, then a 64-unit dense layer with dropout. Trained with Adam on the 60,000-image MNIST training set.
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="main-title">Draw a Digit</div>
+    <div class="main-sub">A convolutional neural network classifies your handwriting in real time</div>
+
+    <div class="work-row">
+      <div class="canvas-col">
+        <div class="draw-wrap">
+          <canvas id="drawCanvas" width="280" height="280"></canvas>
+          <div class="canvas-hint" id="canvasHint">draw a digit 0 - 9</div>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-clear" onclick="clearCanvas()">Clear</button>
+        </div>
+        <div class="preview-row">
+          <span class="preview-label">Network input (28x28)</span>
+          <canvas id="miniCanvas" width="28" height="28" style="width:56px;height:56px"></canvas>
+        </div>
+      </div>
+
+      <div class="result-col">
+        <div class="big-result" id="bigResult">
+          <div class="big-empty">Start drawing and the prediction appears here, updated live as you write.</div>
+        </div>
+        <div class="dist-card">
+          <div class="dist-title">Probability Distribution</div>
+          <div id="distRows"></div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+'use strict';
+
+const canvas = document.getElementById('drawCanvas');
+const ctx    = canvas.getContext('2d');
+const mini   = document.getElementById('miniCanvas');
+const mctx   = mini.getContext('2d');
+
+ctx.fillStyle = '#000';
+ctx.fillRect(0, 0, 280, 280);
+ctx.lineCap = 'round';
+ctx.lineJoin = 'round';
+ctx.strokeStyle = '#fff';
+ctx.lineWidth = 18;
+
+let drawing = false;
+let hasInk = false;
+let predictTimer = null;
+
+// Build distribution rows once
+const distRows = document.getElementById('distRows');
+for (let d = 0; d <= 9; d++) {
+  distRows.insertAdjacentHTML('beforeend',
+    `<div class="dist-row">
+       <span class="dist-digit">${d}</span>
+       <div class="dist-bar-bg"><div class="dist-bar" id="bar${d}" style="width:0%"></div></div>
+       <span class="dist-pct" id="pct${d}">0.0%</span>
+     </div>`);
+}
+
+function pos(e) {
+  const r = canvas.getBoundingClientRect();
+  const t = e.touches ? e.touches[0] : e;
+  return [t.clientX - r.left, t.clientY - r.top];
+}
+
+function start(e) {
+  e.preventDefault();
+  drawing = true;
+  hasInk = true;
+  document.getElementById('canvasHint').classList.add('hidden');
+  const [x, y] = pos(e);
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+  ctx.lineTo(x + 0.1, y + 0.1);
+  ctx.stroke();
+  schedulePredict();
+}
+function move(e) {
+  if (!drawing) return;
+  e.preventDefault();
+  const [x, y] = pos(e);
+  ctx.lineTo(x, y);
+  ctx.stroke();
+  schedulePredict();
+}
+function end() { drawing = false; if (hasInk) schedulePredict(); }
+
+canvas.addEventListener('mousedown', start);
+canvas.addEventListener('mousemove', move);
+window.addEventListener('mouseup', end);
+canvas.addEventListener('touchstart', start, {passive: false});
+canvas.addEventListener('touchmove', move, {passive: false});
+canvas.addEventListener('touchend', end);
+
+function clearCanvas() {
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, 280, 280);
+  mctx.fillStyle = '#000';
+  mctx.fillRect(0, 0, 28, 28);
+  hasInk = false;
+  document.getElementById('canvasHint').classList.remove('hidden');
+  document.getElementById('bigResult').innerHTML =
+    '<div class="big-empty">Start drawing and the prediction appears here, updated live as you write.</div>';
+  for (let d = 0; d <= 9; d++) {
+    document.getElementById('bar' + d).style.width = '0%';
+    document.getElementById('bar' + d).className = 'dist-bar';
+    document.getElementById('pct' + d).textContent = '0.0%';
+    document.getElementById('pct' + d).className = 'dist-pct';
+  }
+}
+
+function schedulePredict() {
+  clearTimeout(predictTimer);
+  predictTimer = setTimeout(predict, 120);
+}
+
+// MNIST-style preprocessing: crop to bounding box, scale longest
+// side to 20px, paste into 28x28 centered on the center of mass.
+function preprocess() {
+  const img = ctx.getImageData(0, 0, 280, 280);
+  const w = 280, h = 280;
+  let minX = w, minY = h, maxX = -1, maxY = -1;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (img.data[(y * w + x) * 4] > 20) {
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
+    }
+  }
+  if (maxX < 0) return null;
+
+  const bw = maxX - minX + 1, bh = maxY - minY + 1;
+  const scale = 20 / Math.max(bw, bh);
+  const sw = Math.max(1, Math.round(bw * scale));
+  const sh = Math.max(1, Math.round(bh * scale));
+
+  // Draw the cropped digit scaled into a temp canvas
+  const tmp = document.createElement('canvas');
+  tmp.width = sw; tmp.height = sh;
+  const tctx = tmp.getContext('2d');
+  tctx.drawImage(canvas, minX, minY, bw, bh, 0, 0, sw, sh);
+
+  // Compute center of mass of the scaled digit
+  const tdata = tctx.getImageData(0, 0, sw, sh).data;
+  let mSum = 0, mX = 0, mY = 0;
+  for (let y = 0; y < sh; y++) {
+    for (let x = 0; x < sw; x++) {
+      const v = tdata[(y * sw + x) * 4];
+      mSum += v; mX += x * v; mY += y * v;
+    }
+  }
+  const comX = mSum ? mX / mSum : sw / 2;
+  const comY = mSum ? mY / mSum : sh / 2;
+
+  // Paste into 28x28 so the center of mass lands at (14, 14)
+  const out = document.createElement('canvas');
+  out.width = 28; out.height = 28;
+  const octx = out.getContext('2d');
+  octx.fillStyle = '#000';
+  octx.fillRect(0, 0, 28, 28);
+  octx.drawImage(tmp, Math.round(14 - comX), Math.round(14 - comY));
+
+  // Mirror to the visible mini preview
+  mctx.fillStyle = '#000';
+  mctx.fillRect(0, 0, 28, 28);
+  mctx.drawImage(out, 0, 0);
+
+  const odata = octx.getImageData(0, 0, 28, 28).data;
+  const pixels = new Array(784);
+  for (let i = 0; i < 784; i++) pixels[i] = +(odata[i * 4] / 255).toFixed(3);
+  return pixels;
+}
+
+let inFlight = false;
+async function predict() {
+  if (inFlight) { schedulePredict(); return; }
+  const pixels = preprocess();
+  if (!pixels) return;
+  inFlight = true;
+  try {
+    const res  = await fetch('/api/predict', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({pixels}),
+    });
+    const data = await res.json();
+    if (data.error) return;
+    render(data);
+  } catch (e) { /* transient network error, next stroke retries */ }
+  finally { inFlight = false; }
+}
+
+function render(d) {
+  document.getElementById('bigResult').innerHTML =
+    `<div class="big-digit">${d.digit}</div>
+     <div class="big-meta">
+       <div class="big-conf">${d.confidence}% confident</div>
+       <div class="big-sub">forward pass: ${d.inference_ms} ms on CPU</div>
+     </div>`;
+  document.getElementById('statMs').textContent = d.inference_ms + 'ms';
+  for (let i = 0; i <= 9; i++) {
+    const pct = (d.distribution[i] * 100);
+    const bar = document.getElementById('bar' + i);
+    const lbl = document.getElementById('pct' + i);
+    bar.style.width = Math.max(pct, 0.5) + '%';
+    bar.className = 'dist-bar' + (i === d.digit ? ' top' : '');
+    lbl.textContent = pct.toFixed(1) + '%';
+    lbl.className = 'dist-pct' + (i === d.digit ? ' top' : '');
+  }
+}
+
+// Model info chips
+fetch('/api/model-info').then(r => r.json()).then(d => {
+  if (d.test_accuracy) document.getElementById('statAcc').textContent = (d.test_accuracy * 100).toFixed(1) + '%';
+  if (d.parameters)    document.getElementById('statParams').textContent = (d.parameters / 1000).toFixed(0) + 'k';
+}).catch(() => {});
+</script>
+
+<script>
+(function(){
+  function upd(){
+    fetch('https://spbdatascience.org/api/gpu-status')
+      .then(function(r){return r.json();})
+      .then(function(d){
+        var s = d.status || 'offline';
+        document.getElementById('gpuDot').className = 'gd ' + (s === 'ready' || s === 'busy' ? s : '');
+        var t = document.getElementById('gpuTxt');
+        t.className = 'gt ' + (s === 'ready' || s === 'busy' ? s : '');
+        t.textContent = s === 'ready' ? 'GPUs Online' : s === 'busy' ? 'GPUs Busy' : 'GPUs Offline';
+      }).catch(function(){
+        document.getElementById('gpuTxt').textContent = 'GPUs Offline';
+      });
+  }
+  upd(); setInterval(upd, 20000);
+})();
+</script>
+<script src="https://spbdatascience.org/js/gpu-status.js?v=6" defer></script>
+</body>
+</html>

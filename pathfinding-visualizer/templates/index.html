@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <link rel="icon" type="image/png" href="/static/logo.png" />
+  <title>Pathfinding Visualizer - SPB Data Science Club</title>
+  <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{--bg:#0c1322;--surface:#141f36;--surface-2:#18233c;--border:#22304d;--border-l:#2c3b5e;--text:#e9eef8;--dim:#b4c1d8;--muted:#6e7f9d;--accent:#6494e8;--accent2:#3f74d4;--start:#4ade80;--target:#6494e8;--visited:#16263d;--frontier:#1d3a5f;--path:#e3b341;--radius:10px}
+    body{font-family:'Public Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased;line-height:1.6;overflow-x:hidden}
+
+    .shell{display:grid;grid-template-columns:290px 1fr;min-height:100vh}
+    .sidebar{background:#0a101c;border-right:1px solid var(--border);padding:1.6rem 1.3rem;display:flex;flex-direction:column;gap:1.15rem;position:sticky;top:0;height:100vh;overflow-y:auto}
+    .main{padding:1.75rem 2rem;display:flex;flex-direction:column;min-width:0}
+
+    .logo{display:flex;align-items:center;gap:.7rem}
+    .logo-name{font-size:.95rem;font-weight:700;line-height:1.25}
+
+    .section-label{font-size:.65rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:.5rem}
+
+    select{background:var(--surface-2);border:1px solid var(--border-l);border-radius:7px;color:var(--text);padding:.5rem .7rem;font-family:inherit;font-size:.85rem;outline:none;cursor:pointer;width:100%}
+    select:focus{border-color:var(--accent2)}
+
+    .algo-desc{font-size:.74rem;color:var(--dim);line-height:1.6;margin-top:.5rem;padding:.6rem .75rem;background:var(--surface-2);border:1px solid var(--border);border-radius:7px;min-height:74px}
+    .algo-desc strong{color:var(--text)}
+    .guarantee{display:inline-block;font-size:.62rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:.12rem .5rem;border-radius:4px;margin-top:.4rem}
+    .g-yes{background:rgba(74,222,128,.12);color:#4ade80;border:1px solid rgba(74,222,128,.25)}
+    .g-no{background:rgba(248,113,113,.1);color:#f87171;border:1px solid rgba(248,113,113,.22)}
+
+    .range-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:.25rem}
+    .range-val{font-size:.76rem;font-family:'JetBrains Mono',monospace;color:#6494e8}
+    input[type=range]{width:100%;accent-color:var(--accent2);cursor:pointer}
+
+    .tool-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:.3rem}
+    .tool-btn{padding:.45rem .3rem;border-radius:6px;font-size:.74rem;font-weight:600;text-align:center;cursor:pointer;border:1px solid var(--border-l);color:var(--dim);background:var(--surface-2);transition:all .15s;font-family:inherit}
+    .tool-btn.active{background:rgba(63,116,212,.3);border-color:rgba(100,148,232,.5);color:#fff}
+
+    .btn{width:100%;padding:.62rem;border:none;border-radius:8px;font-size:.88rem;font-weight:600;font-family:inherit;cursor:pointer;transition:background .2s}
+    .btn-primary{background:var(--accent2);color:#fff}
+    .btn-primary:hover{background:var(--accent)}
+    .btn-primary:disabled{opacity:.5;cursor:default}
+    .btn-ghost{background:var(--surface-2);color:var(--dim);border:1px solid var(--border-l);margin-top:.4rem}
+    .btn-ghost:hover:not(:disabled){color:var(--text);border-color:#38486e}
+    .btn-ghost:disabled{opacity:.5;cursor:default}
+
+    .legend{display:grid;grid-template-columns:1fr 1fr;gap:.4rem .6rem}
+    .legend-item{display:flex;align-items:center;gap:.5rem;font-size:.72rem;color:var(--dim)}
+    .legend-chip{width:13px;height:13px;border-radius:3px;flex-shrink:0;border:1px solid var(--border-l)}
+
+    .stats-bar{display:grid;grid-template-columns:repeat(4,1fr);gap:.75rem;margin-bottom:1.1rem}
+    .stat-box{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:.65rem .9rem}
+    .stat-lbl{font-size:.6rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+    .stat-val{font-size:1.05rem;font-weight:700;font-family:'JetBrains Mono',monospace;color:var(--text);margin-top:.1rem}
+
+    .grid-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:.9rem;flex:1;display:flex;align-items:center;justify-content:center;user-select:none}
+    #grid{display:grid;gap:1px;background:transparent}
+    .cell{width:var(--cell,22px);height:var(--cell,22px);background:#101a2e;border-radius:2.5px;cursor:pointer;position:relative;transition:background .12s}
+    .cell.wall{background:#2c3b5e;animation:pop .18s ease}
+    .cell.weight::after{content:'';position:absolute;inset:35%;border-radius:50%;background:#5a4a16}
+    .cell.visited{background:var(--visited);animation:visitIn .4s ease}
+    .cell.visited.weight::after{background:#7a6420}
+    .cell.path{background:var(--path);animation:pop .25s ease}
+    .cell.path.weight::after{background:#9a7d22}
+    .cell.start{background:var(--start)!important;border-radius:50%;cursor:grab}
+    .cell.target{background:var(--target)!important;border-radius:50%;cursor:grab}
+    @keyframes visitIn{0%{transform:scale(.4);background:var(--frontier);border-radius:50%}70%{transform:scale(1.1)}100%{transform:scale(1)}}
+    @keyframes pop{0%{transform:scale(.6)}70%{transform:scale(1.15)}100%{transform:scale(1)}}
+
+    .hint-bar{font-size:.74rem;color:var(--muted);margin-top:.75rem;text-align:center}
+    .hint-bar kbd{background:var(--surface-2);border:1px solid var(--border-l);border-radius:4px;padding:.05rem .4rem;font-family:'JetBrains Mono',monospace;font-size:.7rem;color:var(--dim)}
+
+    @media(max-width:900px){.shell{grid-template-columns:1fr}.sidebar{position:static;height:auto;border-right:none;border-bottom:1px solid var(--border)}.stats-bar{grid-template-columns:1fr 1fr}}
+
+    .gpu-status-pill{display:inline-flex;align-items:center;gap:.45rem;padding:.28rem .7rem;border-radius:999px;border:1px solid #2c3b5e;background:#141f36;font-size:.72rem;font-weight:600;letter-spacing:.03em;cursor:default;white-space:nowrap;width:fit-content}
+    .gpu-status-pill .gd{width:7px;height:7px;border-radius:50%;flex-shrink:0;background:#3d4d6e}
+    .gpu-status-pill .gd.ready{background:#4ade80;box-shadow:0 0 5px #4ade8077;animation:gpuGlow 2s ease-in-out infinite}
+    .gpu-status-pill .gd.busy{background:#fbbf24;box-shadow:0 0 5px #fbbf2477;animation:gpuGlow 1s ease-in-out infinite}
+    .gpu-status-pill .gt{color:#5d6f8f}
+    .gpu-status-pill .gt.ready{color:#4ade80}
+    .gpu-status-pill .gt.busy{color:#fbbf24}
+    @keyframes gpuGlow{0%,100%{opacity:1}50%{opacity:.35}}
+  </style>
+</head>
+<body>
+  <style>
+  .rotate-hint{display:none}
+  @media (max-width: 740px) and (orientation: portrait) {
+    .rotate-hint{position:fixed;inset:0;z-index:200;background:rgba(9,9,9,.96);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.1rem;padding:2rem;text-align:center}
+    .rotate-hint.dismissed{display:none}
+    .rotate-hint svg{animation:rotateBob 2.4s ease-in-out infinite}
+    @keyframes rotateBob{0%,100%{transform:rotate(0)}50%{transform:rotate(90deg)}}
+    .rotate-hint-title{font-size:1.1rem;font-weight:800;color:#e9eef8}
+    .rotate-hint-sub{font-size:.85rem;color:#9fb0cb;line-height:1.6;max-width:300px}
+    .rotate-hint-btn{margin-top:.4rem;padding:.6rem 1.4rem;background:#3f74d4;color:#fff;border:none;border-radius:8px;font-size:.85rem;font-weight:600;font-family:inherit;cursor:pointer}
+  }
+  </style>
+  <div class="rotate-hint" id="rotateHint">
+    <svg width="44" height="64" viewBox="0 0 24 36" fill="none" stroke="#6494e8" stroke-width="1.6" stroke-linecap="round"><rect x="3" y="2" width="18" height="32" rx="3"/><line x1="9" y1="30" x2="15" y2="30"/></svg>
+    <div class="rotate-hint-title">This page works best in landscape</div>
+    <div class="rotate-hint-sub">Rotate your phone sideways for the full board, or continue anyway in portrait.</div>
+    <button class="rotate-hint-btn" onclick="document.getElementById('rotateHint').classList.add('dismissed')">Continue in portrait</button>
+  </div>
+
+<div class="shell">
+
+  <aside class="sidebar">
+    <div class="logo">
+      <a href="https://spbdatascience.org" title="SPB Data Science Club home" style="display:block;flex-shrink:0"><img src="/static/logo.png" alt="Pathfinding Visualizer" style="width:44px;height:44px;border-radius:9px;object-fit:contain;display:block;flex-shrink:0"/></a>
+      <div class="logo-name">Pathfinding Visualizer</div>
+    </div>
+
+    <div class="gpu-status-pill" id="gpuPill"><div class="gd" id="gpuDot"></div><span class="gt" id="gpuTxt">GPUs</span></div>
+
+    <div>
+      <div class="section-label">Algorithm</div>
+      <select id="algoSelect" onchange="onAlgoChange()">
+        <option value="astar">A* Search</option>
+        <option value="dijkstra">Dijkstra</option>
+        <option value="greedy">Greedy Best-First</option>
+        <option value="bfs">Breadth-First Search</option>
+        <option value="dfs">Depth-First Search</option>
+      </select>
+      <div class="algo-desc" id="algoDesc"></div>
+    </div>
+
+    <div>
+      <div class="range-row"><span class="section-label" style="margin:0">Animation Speed</span><span class="range-val" id="speedVal">fast</span></div>
+      <input type="range" id="speedSlider" min="0" max="2" step="1" value="2" oninput="onSpeedChange()"/>
+    </div>
+
+    <div>
+      <div class="range-row"><span class="section-label" style="margin:0">Map Size</span><span class="range-val" id="sizeVal">medium</span></div>
+      <input type="range" id="sizeSlider" min="0" max="4" step="1" value="2" oninput="onSizeChange()"/>
+    </div>
+
+    <div>
+      <div class="section-label">Draw Tool</div>
+      <div class="tool-row">
+        <button class="tool-btn active" id="toolWall" onclick="setTool('wall')">Wall</button>
+        <button class="tool-btn" id="toolWeight" onclick="setTool('weight')">Weight</button>
+        <button class="tool-btn" id="toolErase" onclick="setTool('erase')">Erase</button>
+      </div>
+    </div>
+
+    <div>
+      <button class="btn btn-primary" id="runBtn" onclick="visualize()">Visualize</button>
+      <button class="btn btn-ghost" id="mazeBtn" onclick="generateMaze()">Generate Maze</button>
+      <button class="btn btn-ghost" id="clearPathBtn" onclick="clearPath()">Clear Path</button>
+      <button class="btn btn-ghost" id="clearAllBtn" onclick="clearBoard()">Clear Board</button>
+    </div>
+
+    <div>
+      <div class="section-label">Legend</div>
+      <div class="legend">
+        <div class="legend-item"><span class="legend-chip" style="background:var(--start);border-radius:50%"></span>Start</div>
+        <div class="legend-item"><span class="legend-chip" style="background:var(--target);border-radius:50%"></span>Target</div>
+        <div class="legend-item"><span class="legend-chip" style="background:#2c3b5e"></span>Wall</div>
+        <div class="legend-item"><span class="legend-chip" style="background:#101a2e;position:relative"><span style="position:absolute;inset:32%;border-radius:50%;background:#5a4a16"></span></span>Weight (cost 5)</div>
+        <div class="legend-item"><span class="legend-chip" style="background:var(--visited)"></span>Visited</div>
+        <div class="legend-item"><span class="legend-chip" style="background:var(--path)"></span>Shortest path</div>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="stats-bar">
+      <div class="stat-box"><div class="stat-lbl">Nodes Visited</div><div class="stat-val" id="statVisited">-</div></div>
+      <div class="stat-box"><div class="stat-lbl">Path Length</div><div class="stat-val" id="statLength">-</div></div>
+      <div class="stat-box"><div class="stat-lbl">Path Cost</div><div class="stat-val" id="statCost">-</div></div>
+      <div class="stat-box"><div class="stat-lbl">Compute Time</div><div class="stat-val" id="statTime">-</div></div>
+    </div>
+
+    <div class="grid-wrap"><div id="grid"></div></div>
+
+    <div class="hint-bar">
+      Click and drag to draw. Drag the <kbd>start</kbd> and <kbd>target</kbd> circles to move them. Weights cost 5 to cross and only matter to weighted algorithms.
+    </div>
+  </main>
+</div>
+
+<script>
+'use strict';
+
+const GRID_SIZES = [
+  {label: 'tiny',   cols: 22, rows: 12, px: 38},
+  {label: 'small',  cols: 32, rows: 17, px: 28},
+  {label: 'medium', cols: 44, rows: 23, px: 22},
+  {label: 'large',  cols: 56, rows: 29, px: 17},
+  {label: 'huge',   cols: 72, rows: 37, px: 13},
+];
+let COLS = 44, ROWS = 23;
+const WEIGHT_COST = 5;
+
+const ALGO_INFO = {
+  astar:    {html: '<strong>A*</strong> expands the node minimizing g(n) + h(n): cost so far plus a Manhattan-distance estimate to the target. The heuristic focuses the search toward the goal without losing optimality.', opt: true},
+  dijkstra: {html: '<strong>Dijkstra</strong> always expands the unvisited node with the lowest total cost from the start. It explores uniformly in every direction and is the classic guaranteed-shortest-path algorithm.', opt: true},
+  greedy:   {html: '<strong>Greedy Best-First</strong> expands whichever node the heuristic estimates is closest to the target, ignoring path cost so far. It is fast but can be misled by obstacles.', opt: false},
+  bfs:      {html: '<strong>Breadth-First Search</strong> expands nodes in rings of increasing hop count. Optimal when every step costs the same, so it ignores weights.', opt: false},
+  dfs:      {html: '<strong>Depth-First Search</strong> explores one branch as far as possible before backtracking. It finds a path when one exists but rarely a short one.', opt: false},
+};
+const SPEEDS = [{label: 'slow', batch: 1, delay: 18}, {label: 'medium', batch: 3, delay: 8}, {label: 'fast', batch: 8, delay: 4}];
+
+let grid = [];                      // {wall, weight}
+let start  = {r: Math.floor(ROWS/2), c: 8};
+let target = {r: Math.floor(ROWS/2), c: COLS - 9};
+let tool = 'wall';
+let mouseDown = false, dragging = null, running = false, dirty = false;
+
+const gridEl = document.getElementById('grid');
+
+function applyGridSize() {
+  const s = GRID_SIZES[+document.getElementById('sizeSlider').value];
+  COLS = s.cols; ROWS = s.rows;
+  document.getElementById('sizeVal').textContent = s.label;
+  gridEl.style.setProperty('--cell', s.px + 'px');
+  gridEl.style.gridTemplateColumns = `repeat(${COLS}, ${s.px}px)`;
+  start  = {r: Math.floor(ROWS / 2), c: Math.max(2, Math.floor(COLS * 0.18))};
+  target = {r: Math.floor(ROWS / 2), c: COLS - 1 - Math.max(2, Math.floor(COLS * 0.18))};
+}
+
+function onSizeChange() {
+  if (running) return;
+  applyGridSize();
+  buildGrid();
+  clearPath();
+}
+
+function buildGrid() {
+  grid = [];
+  gridEl.innerHTML = '';
+  for (let r = 0; r < ROWS; r++) {
+    const row = [];
+    for (let c = 0; c < COLS; c++) {
+      row.push({wall: false, weight: false});
+      const el = document.createElement('div');
+      el.className = 'cell';
+      el.id = `cell-${r}-${c}`;
+      el.addEventListener('mousedown', e => { e.preventDefault(); onCellDown(r, c); });
+      el.addEventListener('mouseenter', () => onCellEnter(r, c));
+      gridEl.appendChild(el);
+    }
+    grid.push(row);
+  }
+  paintEndpoints();
+}
+window.addEventListener('mouseup', () => { mouseDown = false; dragging = null; });
+
+function cellEl(r, c) { return document.getElementById(`cell-${r}-${c}`); }
+
+function paintEndpoints() {
+  document.querySelectorAll('.cell.start,.cell.target').forEach(el => el.classList.remove('start', 'target'));
+  cellEl(start.r, start.c).classList.add('start');
+  cellEl(target.r, target.c).classList.add('target');
+}
+
+function onCellDown(r, c) {
+  if (running) return;
+  mouseDown = true;
+  if (r === start.r && c === start.c)  { dragging = 'start';  return; }
+  if (r === target.r && c === target.c){ dragging = 'target'; return; }
+  applyTool(r, c);
+}
+function onCellEnter(r, c) {
+  if (!mouseDown || running) return;
+  if (dragging) {
+    if (grid[r][c].wall) return;
+    if (dragging === 'start'  && !(r === target.r && c === target.c)) start  = {r, c};
+    if (dragging === 'target' && !(r === start.r  && c === start.c))  target = {r, c};
+    paintEndpoints();
+    if (dirty) rerunInstant();
+    return;
+  }
+  applyTool(r, c);
+}
+function applyTool(r, c) {
+  if ((r === start.r && c === start.c) || (r === target.r && c === target.c)) return;
+  const cell = grid[r][c], el = cellEl(r, c);
+  if (tool === 'wall')   { cell.wall = true;  cell.weight = false; el.classList.add('wall'); el.classList.remove('weight'); }
+  if (tool === 'weight') { cell.weight = true; cell.wall = false;  el.classList.add('weight'); el.classList.remove('wall'); }
+  if (tool === 'erase')  { cell.wall = false; cell.weight = false; el.classList.remove('wall', 'weight'); }
+}
+
+function setTool(t) {
+  tool = t;
+  ['Wall', 'Weight', 'Erase'].forEach(n =>
+    document.getElementById('tool' + n).classList.toggle('active', n.toLowerCase() === t));
+}
+
+function onAlgoChange() {
+  const a = document.getElementById('algoSelect').value;
+  const info = ALGO_INFO[a];
+  document.getElementById('algoDesc').innerHTML =
+    info.html + `<br><span class="guarantee ${info.opt ? 'g-yes' : 'g-no'}">${info.opt ? 'guarantees shortest path' : 'no shortest-path guarantee'}</span>`;
+  if (dirty) rerunInstant();
+}
+function onSpeedChange() {
+  document.getElementById('speedVal').textContent = SPEEDS[+document.getElementById('speedSlider').value].label;
+}
+
+// ── Search algorithms ─────────────────────────────────────────────────
+function neighbors(r, c) {
+  const out = [];
+  if (r > 0)        out.push([r - 1, c]);
+  if (r < ROWS - 1) out.push([r + 1, c]);
+  if (c > 0)        out.push([r, c - 1]);
+  if (c < COLS - 1) out.push([r, c + 1]);
+  return out;
+}
+const key = (r, c) => r * COLS + c;
+const stepCost = (r, c) => grid[r][c].weight ? WEIGHT_COST : 1;
+const manhattan = (r, c) => Math.abs(r - target.r) + Math.abs(c - target.c);
+
+class MinHeap {
+  constructor() { this.a = []; }
+  push(item) {
+    const a = this.a; a.push(item);
+    let i = a.length - 1;
+    while (i > 0) {
+      const p = (i - 1) >> 1;
+      if (a[p][0] <= a[i][0]) break;
+      [a[p], a[i]] = [a[i], a[p]]; i = p;
+    }
+  }
+  pop() {
+    const a = this.a, top = a[0], last = a.pop();
+    if (a.length) {
+      a[0] = last;
+      let i = 0;
+      for (;;) {
+        let s = i; const l = 2 * i + 1, r = 2 * i + 2;
+        if (l < a.length && a[l][0] < a[s][0]) s = l;
+        if (r < a.length && a[r][0] < a[s][0]) s = r;
+        if (s === i) break;
+        [a[s], a[i]] = [a[i], a[s]]; i = s;
+      }
+    }
+    return top;
+  }
+  get size() { return this.a.length; }
+}
+
+function search(algo) {
+  const visitedOrder = [];
+  const cameFrom = new Map();
+  const t0 = performance.now();
+  let found = false;
+
+  if (algo === 'bfs' || algo === 'dfs') {
+    const frontier = [[start.r, start.c]];
+    const seen = new Set([key(start.r, start.c)]);
+    while (frontier.length) {
+      const [r, c] = algo === 'bfs' ? frontier.shift() : frontier.pop();
+      visitedOrder.push([r, c]);
+      if (r === target.r && c === target.c) { found = true; break; }
+      for (const [nr, nc] of neighbors(r, c)) {
+        if (grid[nr][nc].wall || seen.has(key(nr, nc))) continue;
+        seen.add(key(nr, nc));
+        cameFrom.set(key(nr, nc), key(r, c));
+        frontier.push([nr, nc]);
+      }
+    }
+  } else {
+    const dist = new Map([[key(start.r, start.c), 0]]);
+    const done = new Set();
+    const heap = new MinHeap();
+    const priority = (g, r, c) =>
+      algo === 'dijkstra' ? g : algo === 'greedy' ? manhattan(r, c) : g + manhattan(r, c);
+    heap.push([priority(0, start.r, start.c), start.r, start.c]);
+    while (heap.size) {
+      const [, r, c] = heap.pop();
+      const k = key(r, c);
+      if (done.has(k)) continue;
+      done.add(k);
+      visitedOrder.push([r, c]);
+      if (r === target.r && c === target.c) { found = true; break; }
+      for (const [nr, nc] of neighbors(r, c)) {
+        if (grid[nr][nc].wall) continue;
+        const nk = key(nr, nc);
+        const g = dist.get(k) + stepCost(nr, nc);
+        if (!dist.has(nk) || g < dist.get(nk)) {
+          dist.set(nk, g);
+          cameFrom.set(nk, k);
+          heap.push([priority(g, nr, nc), nr, nc]);
+        }
+      }
+    }
+  }
+
+  const elapsed = performance.now() - t0;
+  const path = [];
+  if (found) {
+    let k = key(target.r, target.c);
+    while (k !== undefined && k !== key(start.r, start.c)) {
+      path.unshift([Math.floor(k / COLS), k % COLS]);
+      k = cameFrom.get(k);
+    }
+  }
+  return {visitedOrder, path, found, elapsed};
+}
+
+// ── Visualization ─────────────────────────────────────────────────────
+function wipeSearchPaint() {
+  document.querySelectorAll('.cell.visited,.cell.path').forEach(el => el.classList.remove('visited', 'path'));
+}
+
+function setRunning(on) {
+  running = on;
+  ['runBtn', 'mazeBtn', 'clearPathBtn', 'clearAllBtn'].forEach(id =>
+    document.getElementById(id).disabled = on);
+}
+
+function showStats(res) {
+  document.getElementById('statVisited').textContent = res.visitedOrder.length;
+  document.getElementById('statLength').textContent  = res.found ? res.path.length : 'no path';
+  const cost = res.found ? res.path.reduce((s, [r, c]) => s + stepCost(r, c), 0) : null;
+  document.getElementById('statCost').textContent = res.found ? cost : '-';
+  document.getElementById('statTime').textContent = res.elapsed.toFixed(1) + 'ms';
+}
+
+function visualize() {
+  if (running) return;
+  wipeSearchPaint();
+  const algo = document.getElementById('algoSelect').value;
+  const res  = search(algo);
+  const sp   = SPEEDS[+document.getElementById('speedSlider').value];
+  setRunning(true);
+  dirty = true;
+
+  let i = 0;
+  (function step() {
+    for (let b = 0; b < sp.batch && i < res.visitedOrder.length; b++, i++) {
+      const [r, c] = res.visitedOrder[i];
+      if (!(r === start.r && c === start.c) && !(r === target.r && c === target.c))
+        cellEl(r, c).classList.add('visited');
+    }
+    if (i < res.visitedOrder.length) { setTimeout(step, sp.delay); return; }
+    // Animate the path
+    let j = 0;
+    (function pstep() {
+      if (j < res.path.length) {
+        const [r, c] = res.path[j++];
+        if (!(r === target.r && c === target.c)) cellEl(r, c).classList.add('path');
+        setTimeout(pstep, 22);
+        return;
+      }
+      showStats(res);
+      setRunning(false);
+    })();
+  })();
+}
+
+// Instant re-run while dragging endpoints after a visualization
+function rerunInstant() {
+  wipeSearchPaint();
+  const res = search(document.getElementById('algoSelect').value);
+  for (const [r, c] of res.visitedOrder)
+    if (!(r === start.r && c === start.c) && !(r === target.r && c === target.c))
+      cellEl(r, c).classList.add('visited');
+  for (const [r, c] of res.path)
+    if (!(r === target.r && c === target.c)) cellEl(r, c).classList.add('path');
+  showStats(res);
+}
+
+function clearPath() {
+  wipeSearchPaint();
+  dirty = false;
+  ['statVisited', 'statLength', 'statCost', 'statTime'].forEach(id =>
+    document.getElementById(id).textContent = '-');
+}
+function clearBoard() {
+  clearPath();
+  for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
+    grid[r][c].wall = false; grid[r][c].weight = false;
+    cellEl(r, c).classList.remove('wall', 'weight');
+  }
+}
+
+// ── Maze generation: recursive division ───────────────────────────────
+function generateMaze() {
+  if (running) return;
+  clearBoard();
+  const walls = [];
+  divide(0, 0, COLS - 1, ROWS - 1, walls);
+  // Drop walls on endpoints
+  const filtered = walls.filter(([r, c]) =>
+    !(r === start.r && c === start.c) && !(r === target.r && c === target.c));
+  setRunning(true);
+  let i = 0;
+  (function step() {
+    for (let b = 0; b < 6 && i < filtered.length; b++, i++) {
+      const [r, c] = filtered[i];
+      grid[r][c].wall = true;
+      cellEl(r, c).classList.add('wall');
+    }
+    if (i < filtered.length) setTimeout(step, 6);
+    else setRunning(false);
+  })();
+}
+
+function divide(x1, y1, x2, y2, out) {
+  const w = x2 - x1, h = y2 - y1;
+  if (w < 3 || h < 3) return;
+  const horizontal = h > w ? true : w > h ? false : Math.random() < 0.5;
+  if (horizontal) {
+    const wy   = y1 + 1 + 2 * Math.floor(Math.random() * ((h - 1) / 2)); // even offset rows
+    const hole = x1 + 2 * Math.floor(Math.random() * ((w + 1) / 2));     // odd offset cols stay open
+    for (let x = x1; x <= x2; x++) if (x !== hole) out.push([wy, x]);
+    divide(x1, y1, x2, wy - 1, out);
+    divide(x1, wy + 1, x2, y2, out);
+  } else {
+    const wx   = x1 + 1 + 2 * Math.floor(Math.random() * ((w - 1) / 2));
+    const hole = y1 + 2 * Math.floor(Math.random() * ((h + 1) / 2));
+    for (let y = y1; y <= y2; y++) if (y !== hole) out.push([y, wx]);
+    divide(x1, y1, wx - 1, y2, out);
+    divide(wx + 1, y1, x2, y2, out);
+  }
+}
+
+applyGridSize();
+buildGrid();
+onAlgoChange();
+onSpeedChange();
+</script>
+
+<script>
+(function(){
+  function upd(){
+    fetch('https://spbdatascience.org/api/gpu-status')
+      .then(function(r){return r.json();})
+      .then(function(d){
+        var s = d.status || 'offline';
+        document.getElementById('gpuDot').className = 'gd ' + (s === 'ready' || s === 'busy' ? s : '');
+        var t = document.getElementById('gpuTxt');
+        t.className = 'gt ' + (s === 'ready' || s === 'busy' ? s : '');
+        t.textContent = s === 'ready' ? 'GPUs Online' : s === 'busy' ? 'GPUs Busy' : 'GPUs Offline';
+      }).catch(function(){
+        document.getElementById('gpuTxt').textContent = 'GPUs Offline';
+      });
+  }
+  upd(); setInterval(upd, 20000);
+})();
+</script>
+<script src="https://spbdatascience.org/js/gpu-status.js?v=6" defer></script>
+</body>
+</html>

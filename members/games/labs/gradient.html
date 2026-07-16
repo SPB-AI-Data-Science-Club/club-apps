@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Gradient Lab - SPB Data Science</title>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
+<style>
+:root{--bg:#0c1322;--surface:#141f36;--s2:#18233c;--border:#22304d;--bl:#2c3b5e;--acc:#3f74d4;
+  --accl:#6494e8;--gold:#f2c14e;--green:#4ade80;--red:#f87171;--text:#e9eef8;--dim:#9fb0cb;--mut:#6e7f9d}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Public Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:20px}
+.wrap{max-width:860px;margin:0 auto}
+h1{font-size:1.3rem;font-weight:800;margin-bottom:.3rem}
+.sub{color:var(--dim);font-size:.9rem;line-height:1.5;margin-bottom:1.1rem;max-width:62ch}
+.mono{font-family:'JetBrains Mono',monospace}
+canvas{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:12px;display:block}
+.row{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;margin:1rem 0}
+.row label{font-size:.8rem;font-weight:700;color:var(--dim)}
+input[type=text]{background:var(--surface);border:1px solid var(--bl);color:var(--text);border-radius:8px;
+  padding:.5rem .7rem;width:110px;font-family:'JetBrains Mono',monospace;font-size:1rem}
+button{font-family:inherit;cursor:pointer;border:none;border-radius:8px;padding:.55rem 1rem;font-weight:700;font-size:.9rem}
+.bp{background:var(--acc);color:#fff}.bp:hover{background:var(--accl)}
+.bs{background:var(--s2);color:var(--text);border:1px solid var(--bl)}
+.bg{background:var(--gold);color:#1a1305}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:.6rem;margin-top:.6rem}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:.7rem;text-align:center}
+.stat .v{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:1.25rem}
+.stat .k{font-size:.68rem;text-transform:uppercase;letter-spacing:.05em;color:var(--mut);margin-top:.15rem}
+#banner{margin-top:.9rem;padding:.8rem 1rem;border-radius:10px;font-weight:700;display:none}
+.win{background:rgba(74,222,128,.12);border:1px solid rgba(74,222,128,.4);color:var(--green)}
+.lose{background:rgba(248,113,113,.12);border:1px solid rgba(248,113,113,.4);color:var(--red)}
+.note{color:var(--mut);font-size:.78rem;margin-top:1rem;line-height:1.5}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Gradient Descent Sandbox</h1>
+  <p class="sub">The ball starts on the right hill and only knows the slope under its feet. Pick a learning rate
+    and see how many steps it takes to settle at the bottom. Too high and it launches itself into orbit. Too low
+    and you will grow old waiting. Fewest steps to converge wins the round.</p>
+
+  <canvas id="cv" width="820" height="380"></canvas>
+
+  <div class="row">
+    <label>Learning rate</label>
+    <input type="text" id="lr" value="0.10" inputmode="decimal" />
+    <button class="bp" id="stepBtn">Step</button>
+    <button class="bg" id="runBtn">Run</button>
+    <button class="bs" id="resetBtn">Reset</button>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="v mono" id="sSteps">0</div><div class="k">Steps</div></div>
+    <div class="stat"><div class="v mono" id="sW">3.60</div><div class="k">Position w</div></div>
+    <div class="stat"><div class="v mono" id="sLoss">-</div><div class="k">Loss f(w)</div></div>
+    <div class="stat"><div class="v mono" id="sGrad">-</div><div class="k">Slope f'(w)</div></div>
+  </div>
+  <div id="banner"></div>
+  <p class="note">The landscape has two valleys. Depending on where the ball lands, you may settle in the shallow
+    one, a local minimum. Converged means the slope is nearly flat, under 0.01.</p>
+</div>
+
+<script>
+const f  = w => 0.05*w**4 - 0.8*w**2 + 0.3*w + 4;
+const df = w => 0.2*w**3 - 1.6*w + 0.3;
+const W0 = 3.6, XMIN=-4.6, XMAX=4.6;
+let w = W0, steps = 0, trail = [], running = null, done = false;
+
+const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+const YMAX = Math.max(f(XMIN), f(XMAX)) + .5, YMIN = Math.min(...Array.from({length:200},(_,i)=>f(XMIN+(XMAX-XMIN)*i/199))) - .6;
+const px = x => (x-XMIN)/(XMAX-XMIN)*cv.width;
+const py = y => cv.height - (y-YMIN)/(YMAX-YMIN)*cv.height;
+
+function draw(){
+  ctx.clearRect(0,0,cv.width,cv.height);
+  ctx.strokeStyle = '#22304d'; ctx.lineWidth = 1;
+  for(let gx=Math.ceil(XMIN); gx<=XMAX; gx++){ ctx.beginPath(); ctx.moveTo(px(gx),0); ctx.lineTo(px(gx),cv.height); ctx.stroke(); }
+  ctx.strokeStyle = '#6494e8'; ctx.lineWidth = 2.5; ctx.beginPath();
+  for(let i=0;i<=400;i++){ const x = XMIN+(XMAX-XMIN)*i/400; i?ctx.lineTo(px(x),py(f(x))):ctx.moveTo(px(x),py(f(x))); }
+  ctx.stroke();
+  ctx.strokeStyle = 'rgba(242,193,78,.45)'; ctx.lineWidth = 1.5; ctx.beginPath();
+  trail.forEach((t,i)=> i?ctx.lineTo(px(t),py(f(t))):ctx.moveTo(px(t),py(f(t))));
+  ctx.stroke();
+  trail.forEach(t=>{ ctx.fillStyle='rgba(242,193,78,.5)'; ctx.beginPath(); ctx.arc(px(t),py(f(t)),3.5,0,7); ctx.fill(); });
+  if(Math.abs(w) <= XMAX+1){
+    ctx.fillStyle = '#f2c14e'; ctx.beginPath(); ctx.arc(px(w),py(f(w)),8,0,7); ctx.fill();
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
+  }
+}
+function refresh(){
+  document.getElementById('sSteps').textContent = steps;
+  document.getElementById('sW').textContent = Math.abs(w)>999 ? 'gone' : w.toFixed(2);
+  document.getElementById('sLoss').textContent = Math.abs(w)>999 ? '-' : f(w).toFixed(3);
+  document.getElementById('sGrad').textContent = Math.abs(w)>999 ? '-' : df(w).toFixed(3);
+  draw();
+}
+function banner(msg, cls){
+  const b = document.getElementById('banner');
+  b.textContent = msg; b.className = cls; b.style.display = 'block';
+}
+function step(){
+  if(done) return;
+  const lr = parseFloat(document.getElementById('lr').value);
+  if(isNaN(lr) || lr <= 0){ banner('Enter a learning rate above zero.', 'lose'); return; }
+  trail.push(w);
+  if(trail.length > 60) trail.shift();
+  w = w - lr*df(w); steps++;
+  if(!isFinite(w) || Math.abs(w) > 50){
+    done = true; stopRun(); banner('Diverged. The ball flew off the map after ' + steps + ' steps. Lower the learning rate.', 'lose');
+  } else if(Math.abs(df(w)) < 0.01){
+    done = true; stopRun();
+    const global = w < 0;
+    banner('Converged in ' + steps + ' steps' + (global ? ', and in the deeper valley. Nice.' :
+      ', but in the shallow valley. That is a local minimum.'), 'win');
+  }
+  refresh();
+}
+function stopRun(){ if(running){ clearInterval(running); running=null; document.getElementById('runBtn').textContent='Run'; } }
+document.getElementById('stepBtn').onclick = step;
+document.getElementById('runBtn').onclick = () => {
+  if(running){ stopRun(); return; }
+  running = setInterval(step, 120); document.getElementById('runBtn').textContent = 'Pause';
+};
+document.getElementById('resetBtn').onclick = () => {
+  stopRun(); w = W0; steps = 0; trail = []; done = false;
+  document.getElementById('banner').style.display='none'; refresh();
+};
+refresh();
+</script>
+</body>
+</html>

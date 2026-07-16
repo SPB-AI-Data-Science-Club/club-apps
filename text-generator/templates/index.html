@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <link rel="icon" type="image/png" href="/static/logo.png" />
+  <title>Language Model Playground - SPB Data Science Club</title>
+  <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{--bg:#0c1322;--surface:#141f36;--surface-2:#18233c;--border:#22304d;--border-l:#2c3b5e;--text:#e9eef8;--dim:#b4c1d8;--muted:#6e7f9d;--accent:#6494e8;--accent2:#3f74d4;--pink:#6494e8;--radius:10px}
+    body{font-family:'Public Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased;line-height:1.6}
+
+    .shell{display:grid;grid-template-columns:300px 1fr;min-height:100vh}
+    .sidebar{background:#0a101c;border-right:1px solid var(--border);padding:1.75rem 1.4rem;display:flex;flex-direction:column;gap:1.25rem;position:sticky;top:0;height:100vh;overflow-y:auto}
+    .main{padding:2.25rem 2.5rem;max-width:980px}
+
+    .logo{display:flex;align-items:center;gap:.75rem}
+    .logo-name{font-size:.95rem;font-weight:700;line-height:1.25}
+
+    .section-label{font-size:.65rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:.5rem}
+
+    select{background:var(--surface-2);border:1px solid var(--border-l);border-radius:7px;color:var(--text);padding:.5rem .7rem;font-family:inherit;font-size:.85rem;outline:none;cursor:pointer;width:100%}
+    select:focus{border-color:var(--accent2)}
+
+    .range-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:.25rem}
+    .range-val{font-size:.78rem;font-family:'JetBrains Mono',monospace;color:var(--pink)}
+    input[type=range]{width:100%;accent-color:var(--accent2);cursor:pointer}
+    .range-note{font-size:.68rem;color:var(--muted);line-height:1.5;margin-top:.3rem}
+
+    .gen-btn{width:100%;padding:.7rem;background:var(--accent2);color:#fff;border:none;border-radius:8px;font-size:.92rem;font-weight:600;font-family:inherit;cursor:pointer;transition:background .2s}
+    .gen-btn:hover{background:var(--accent)}
+    .gen-btn:disabled{opacity:.5;cursor:default}
+
+    .info-card{background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:.85rem 1rem;font-size:.76rem;color:var(--dim);line-height:1.65}
+    .info-card strong{color:var(--text)}
+
+    .main-title{font-size:1.75rem;font-weight:800;letter-spacing:-.028em;margin-bottom:.3rem}
+    .main-sub{font-size:.92rem;color:var(--dim);margin-bottom:1.75rem}
+
+    .stats-bar{display:grid;grid-template-columns:repeat(4,1fr);gap:.75rem;margin-bottom:1.25rem}
+    .stat-box{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:.65rem .9rem}
+    .stat-lbl{font-size:.6rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+    .stat-val{font-size:1rem;font-weight:700;font-family:'JetBrains Mono',monospace;color:var(--text);margin-top:.1rem}
+
+    .output-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);min-height:380px;display:flex;flex-direction:column}
+    .output-head{padding:.85rem 1.25rem;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+    .output-title{font-size:.65rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+    .output-corpus{font-size:.72rem;color:var(--dim);}
+    .output-body{flex:1;padding:1.4rem 1.6rem;font-family:'JetBrains Mono',monospace;font-size:.86rem;line-height:1.85;color:#dde5f2;white-space:pre-wrap;word-break:break-word}
+    .output-body .caret{display:inline-block;width:8px;height:1.05em;background:var(--pink);vertical-align:text-bottom;animation:blink .85s step-end infinite}
+    @keyframes blink{50%{opacity:0}}
+    .output-empty{color:var(--muted);font-family:'Public Sans',sans-serif;font-size:.9rem}
+
+    .explain{margin-top:1.5rem;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.25rem 1.5rem}
+    .explain-title{font-size:.65rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:.6rem}
+    .explain p{font-size:.84rem;color:var(--dim);line-height:1.75;margin-bottom:.6rem}
+    .explain p:last-child{margin-bottom:0}
+    .explain strong{color:var(--text)}
+
+    @media(max-width:860px){.shell{grid-template-columns:1fr}.sidebar{position:static;height:auto;border-right:none;border-bottom:1px solid var(--border)}.main{padding:1.5rem}.stats-bar{grid-template-columns:1fr 1fr}}
+
+    .gpu-status-pill{display:inline-flex;align-items:center;gap:.45rem;padding:.28rem .7rem;border-radius:999px;border:1px solid #2c3b5e;background:#141f36;font-size:.72rem;font-weight:600;letter-spacing:.03em;cursor:default;white-space:nowrap;width:fit-content}
+    .gpu-status-pill .gd{width:7px;height:7px;border-radius:50%;flex-shrink:0;background:#3d4d6e}
+    .gpu-status-pill .gd.ready{background:#4ade80;box-shadow:0 0 5px #4ade8077;animation:gpuGlow 2s ease-in-out infinite}
+    .gpu-status-pill .gd.busy{background:#fbbf24;box-shadow:0 0 5px #fbbf2477;animation:gpuGlow 1s ease-in-out infinite}
+    .gpu-status-pill .gt{color:#5d6f8f}
+    .gpu-status-pill .gt.ready{color:#4ade80}
+    .gpu-status-pill .gt.busy{color:#fbbf24}
+    @keyframes gpuGlow{0%,100%{opacity:1}50%{opacity:.35}}
+
+    .custom-text{width:100%;margin-top:.5rem;background:var(--surface-2);border:1px solid var(--border-l);border-radius:8px;padding:.7rem;font-size:.8rem;font-family:'JetBrains Mono',monospace;color:var(--text);resize:vertical;outline:none;line-height:1.6}
+    .custom-text:focus{border-color:var(--accent2)}
+    .custom-text::placeholder{font-family:'Public Sans',sans-serif;color:var(--muted)}
+    .hidden{display:none!important}
+  </style>
+</head>
+<body>
+<div class="shell">
+
+  <aside class="sidebar">
+    <div class="logo">
+      <a href="https://spbdatascience.org" title="SPB Data Science Club home" style="display:block;flex-shrink:0"><img src="/static/logo.png" alt="Language Model Playground" style="width:44px;height:44px;border-radius:9px;object-fit:contain;display:block;flex-shrink:0"/></a>
+      <div class="logo-name">Language Model Playground</div>
+    </div>
+
+    <div class="gpu-status-pill" id="gpuPill"><div class="gd" id="gpuDot"></div><span class="gt" id="gpuTxt">GPUs</span></div>
+
+    <div>
+      <div class="section-label">Training Corpus</div>
+      <select id="corpusSelect" onchange="onCorpusChange()">
+        {% for c in corpora %}
+        <option value="{{ c.id }}">{{ c.label }}</option>
+        {% endfor %}
+        <option value="custom">Your own text</option>
+      </select>
+      <textarea id="customText" class="custom-text hidden"
+                placeholder="Paste any training text here, such as an essay, a story, or a chapter from a book."
+                rows="7"></textarea>
+    </div>
+
+    <div>
+      <div class="range-row"><span class="section-label" style="margin:0">Context Length</span><span class="range-val" id="orderVal">4 chars</span></div>
+      <input type="range" id="orderSlider" min="1" max="{{ max_order }}" step="1" value="4" oninput="updateLabels()"/>
+      <div class="range-note">The number of previous characters the model conditions on. Lower values produce less coherent output, while higher values reproduce longer passages from the source.</div>
+    </div>
+
+    <div>
+      <div class="range-row"><span class="section-label" style="margin:0">Temperature</span><span class="range-val" id="tempVal">1.00</span></div>
+      <input type="range" id="tempSlider" min="0.05" max="2.5" step="0.05" value="1.0" oninput="updateLabels()"/>
+      <div class="range-note">Values below 1.0 favor the most common continuations, while values above 1.0 increase variety. The same parameter is used in modern language models.</div>
+    </div>
+
+    <div>
+      <div class="range-row"><span class="section-label" style="margin:0">Output Length</span><span class="range-val" id="lenVal">500</span></div>
+      <input type="range" id="lenSlider" min="100" max="{{ max_length }}" step="50" value="500" oninput="updateLabels()"/>
+    </div>
+
+    <button class="gen-btn" id="genBtn" onclick="generate()">Generate Text</button>
+
+    <div class="info-card">
+      <strong>About the model.</strong> A character-level n-gram model is a frequency table mapping each context in the training text to the characters that followed it. The sampling loop, which reads a context, produces a distribution over the next token, and samples from it, is the same loop used by neural language models.
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="main-title">Language Model Playground</div>
+    <div class="main-sub">Character-level n-gram text generation with adjustable context length and sampling temperature</div>
+
+    <div class="stats-bar">
+      <div class="stat-box"><div class="stat-lbl">Contexts Learned</div><div class="stat-val" id="statCtx">-</div></div>
+      <div class="stat-box"><div class="stat-lbl">Corpus Size</div><div class="stat-val" id="statCorpus">-</div></div>
+      <div class="stat-box"><div class="stat-lbl">Avg Choices / Step</div><div class="stat-val" id="statBranch">-</div></div>
+      <div class="stat-box"><div class="stat-lbl">Generation Time</div><div class="stat-val" id="statTime">-</div></div>
+    </div>
+
+    <div class="output-card">
+      <div class="output-head">
+        <span class="output-title">Generated Text</span>
+        <span class="output-corpus" id="outputCorpus"></span>
+      </div>
+      <div class="output-body" id="outputBody">
+        <span class="output-empty">Select a corpus and press Generate. Comparing context length 2 and 6 on the same corpus shows the effect of the context window.</span>
+      </div>
+    </div>
+
+    <div class="explain">
+      <div class="explain-title">Background</div>
+      <p>Before neural networks, language models were tables of observed continuations like this one. The generation loop is unchanged in modern systems; what changed is the model in the middle, since a neural network can share information between similar contexts and generalize to contexts it has never seen.</p>
+      <p>The dead end restarts statistic counts contexts that appeared too rarely in the training text to continue from, which becomes more common at higher context lengths and illustrates why larger context windows require more training data.</p>
+    </div>
+  </main>
+</div>
+
+<script>
+'use strict';
+
+function onCorpusChange() {
+  const isCustom = document.getElementById('corpusSelect').value === 'custom';
+  document.getElementById('customText').classList.toggle('hidden', !isCustom);
+}
+
+function updateLabels() {
+  const o = document.getElementById('orderSlider').value;
+  document.getElementById('orderVal').textContent = o + (o === '1' ? ' char' : ' chars');
+  document.getElementById('tempVal').textContent  = (+document.getElementById('tempSlider').value).toFixed(2);
+  document.getElementById('lenVal').textContent   = document.getElementById('lenSlider').value;
+}
+
+let typingTimer = null;
+
+async function generate() {
+  const btn = document.getElementById('genBtn');
+  btn.disabled = true;
+  btn.textContent = 'Generating...';
+  clearInterval(typingTimer);
+
+  const corpusSel = document.getElementById('corpusSelect');
+  const body = {
+    corpus:      corpusSel.value,
+    order:       +document.getElementById('orderSlider').value,
+    temperature: +document.getElementById('tempSlider').value,
+    length:      +document.getElementById('lenSlider').value,
+  };
+  if (body.corpus === 'custom') {
+    body.custom_text = document.getElementById('customText').value;
+  }
+
+  const t0 = performance.now();
+  try {
+    const res  = await fetch('/api/generate', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (data.error) { alert(data.error); return; }
+    const elapsed = performance.now() - t0;
+
+    document.getElementById('statCtx').textContent    = data.stats.contexts.toLocaleString();
+    document.getElementById('statCorpus').textContent = Math.round(data.stats.corpus_chars / 1000) + 'k chars';
+    document.getElementById('statBranch').textContent = data.stats.avg_branching;
+    document.getElementById('statTime').textContent   = Math.round(elapsed) + 'ms';
+    document.getElementById('outputCorpus').textContent =
+      corpusSel.options[corpusSel.selectedIndex].text +
+      (data.stats.dead_ends ? ` (${data.stats.dead_ends} dead end restart${data.stats.dead_ends > 1 ? 's' : ''})` : '');
+
+    typewrite(data.text);
+  } catch (e) {
+    alert('Generation failed; please try again.');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Generate Text';
+  }
+}
+
+function typewrite(text) {
+  const out = document.getElementById('outputBody');
+  out.innerHTML = '<span id="typed"></span><span class="caret"></span>';
+  const typed = document.getElementById('typed');
+  let i = 0;
+  typingTimer = setInterval(() => {
+    // Type several characters per tick so long outputs stay snappy
+    typed.textContent += text.slice(i, i + 3);
+    i += 3;
+    if (i >= text.length) {
+      clearInterval(typingTimer);
+      out.querySelector('.caret').remove();
+    }
+  }, 8);
+}
+
+updateLabels();
+</script>
+
+<script>
+(function(){
+  function upd(){
+    fetch('https://spbdatascience.org/api/gpu-status')
+      .then(function(r){return r.json();})
+      .then(function(d){
+        var s = d.status || 'offline';
+        document.getElementById('gpuDot').className = 'gd ' + (s === 'ready' || s === 'busy' ? s : '');
+        var t = document.getElementById('gpuTxt');
+        t.className = 'gt ' + (s === 'ready' || s === 'busy' ? s : '');
+        t.textContent = s === 'ready' ? 'GPUs Online' : s === 'busy' ? 'GPUs Busy' : 'GPUs Offline';
+      }).catch(function(){
+        document.getElementById('gpuTxt').textContent = 'GPUs Offline';
+      });
+  }
+  upd(); setInterval(upd, 20000);
+})();
+</script>
+<script src="https://spbdatascience.org/js/gpu-status.js?v=6" defer></script>
+</body>
+</html>

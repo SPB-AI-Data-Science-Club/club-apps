@@ -1,0 +1,382 @@
+############ NGINX SITE CONFIG (/etc/nginx/sites-available) ############
+server {
+    listen 80 default_server;
+    listen 443 ssl default_server;
+    include snippets/ssl-origin.conf;
+    server_name spbdatascience.org www.spbdatascience.org;
+    root /var/www/spb-club/portfolio;
+    index index.html;
+    gzip on;
+    gzip_types text/css text/javascript application/javascript application/json image/svg+xml;
+    gzip_min_length 1024;
+
+    # Security: never serve VCS metadata, dotfiles, OS junk, ops scripts or backups
+    location ~ /\. { deny all; access_log off; log_not_found off; return 404; }
+    location ~* \.(sh|conf|bak|backup)$ { deny all; return 404; }
+    location ~* \.backup\.(html|css|js)$ { deny all; return 404; }
+
+    # Versioned static assets (cache-busted via ?v=) can cache hard.
+    location ~* \.(?:css|js|png|jpe?g|gif|svg|ico|webp|woff2?)$ {
+        try_files $uri =404;
+        add_header Cache-Control "public, max-age=31536000";
+        include /etc/nginx/snippets/sec-headers.conf;
+    }
+    # Old static /projects page retired; send it to the live demo showcase.
+    location = /projects { return 301 https://demo.spbdatascience.org; }
+
+    # HTML pages must always revalidate so a deploy is reflected immediately
+    # (prevents stale pages loading an old gpu-status.js, etc.).
+    location / {
+        try_files $uri $uri/ $uri.html =404;
+        add_header Cache-Control "no-cache";
+        include /etc/nginx/snippets/sec-headers.conf;
+    }
+    location /api/gpu-status {
+        proxy_pass http://127.0.0.1:15006/api/gpu-status;
+        proxy_set_header Host $host;
+        add_header Access-Control-Allow-Origin "*";
+        include /etc/nginx/snippets/sec-headers.conf;
+    }
+}
+
+server {
+    listen 80;
+    listen 443 ssl;
+    include snippets/ssl-origin.conf;
+    server_name chess.spbdatascience.org;
+    location / {
+        proxy_pass http://127.0.0.1:15001;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_read_timeout 60s;
+    }
+}
+
+server {
+    listen 80;
+    listen 443 ssl;
+    include snippets/ssl-origin.conf;
+    server_name neural.spbdatascience.org;
+    location / {
+        proxy_pass http://127.0.0.1:15002;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_read_timeout 120s;
+    }
+}
+
+server {
+    listen 80;
+    listen 443 ssl;
+    include snippets/ssl-origin.conf;
+    server_name sentiment.spbdatascience.org;
+    location / {
+        proxy_pass http://127.0.0.1:15003;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_read_timeout 120s;
+    }
+}
+
+server {
+    listen 80;
+    listen 443 ssl;
+    include snippets/ssl-origin.conf;
+    server_name classifier.spbdatascience.org;
+    location / {
+        proxy_pass http://127.0.0.1:15004;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_read_timeout 120s;
+    }
+}
+
+server {
+    listen 80;
+    listen 443 ssl;
+    include snippets/ssl-origin.conf;
+    server_name club.spbdatascience.org;
+    location / {
+        proxy_pass http://127.0.0.1:15005;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_read_timeout 60s;
+    }
+}
+
+server {
+    listen 80;
+    listen 443 ssl;
+    include snippets/ssl-origin.conf;
+    server_name demo.spbdatascience.org;
+    return 301 https://club.spbdatascience.org/demo;
+}
+
+server {
+    listen 80;
+    listen 443 ssl;
+    include snippets/ssl-origin.conf;
+    server_name style.spbdatascience.org;
+    client_max_body_size 20m;
+    # GPU diffusion restyle: limit per-IP submission rate and concurrency
+    location = /api/restyle {
+        limit_req zone=gen_submit burst=3 nodelay;
+        limit_conn gen_conn 2;
+        limit_req_status 429;
+        limit_conn_status 429;
+        proxy_pass http://127.0.0.1:15006;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_read_timeout 120s;
+    }
+    location / {
+        proxy_pass http://127.0.0.1:15006;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_read_timeout 120s;
+    }
+}
+
+server {
+    listen 80;
+    listen 443 ssl;
+    include snippets/ssl-origin.conf;
+    server_name digits.spbdatascience.org;
+    location / {
+        proxy_pass http://127.0.0.1:15007;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_read_timeout 60s;
+    }
+}
+
+server {
+    listen 80;
+    listen 443 ssl;
+    include snippets/ssl-origin.conf;
+    server_name pathfinding.spbdatascience.org;
+    location / {
+        proxy_pass http://127.0.0.1:15008;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_read_timeout 60s;
+    }
+}
+
+server {
+    listen 80;
+    listen 443 ssl;
+    include snippets/ssl-origin.conf;
+    server_name textgen.spbdatascience.org;
+    location / {
+        proxy_pass http://127.0.0.1:15009;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_read_timeout 120s;
+    }
+}
+
+server {
+    listen 80;
+    listen 443 ssl;
+    include snippets/ssl-origin.conf;
+    server_name photo.spbdatascience.org;
+    client_max_body_size 16m;
+    # GPU photo generation: per-IP submission rate + concurrency cap
+    location = /api/generate {
+        limit_req zone=gen_submit burst=4 nodelay;
+        limit_conn gen_conn 2;
+        limit_req_status 429;
+        limit_conn_status 429;
+        proxy_pass http://127.0.0.1:15010;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_read_timeout 120s;
+    }
+    location / {
+        proxy_pass http://127.0.0.1:15010;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_read_timeout 120s;
+    }
+}
+
+############ SYSTEMD SERVICES (spb-*) ############
+===== /etc/systemd/system/spb-chess.service =====
+[Unit]
+Description=SPB Chess Bot
+After=network.target
+
+[Service]
+User=www-data
+WorkingDirectory=/var/www/spb-club/chess-bot
+ExecStart=/opt/spb-venv/bin/gunicorn -w 1 -b 127.0.0.1:15001 --timeout 60 --preload --max-requests 1000 --max-requests-jitter 100 app:app
+Restart=always
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
+
+===== /etc/systemd/system/spb-classifier.service =====
+[Unit]
+Description=SPB Image Classifier
+After=network.target
+
+[Service]
+User=www-data
+WorkingDirectory=/var/www/spb-club/image-classifier
+ExecStart=/opt/spb-venv/bin/gunicorn -w 1 -b 127.0.0.1:15004 --timeout 120 --preload --max-requests 1000 --max-requests-jitter 100 app:app
+Restart=always
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1 TORCH_HOME=/var/www/spb-club/.torch_cache
+
+[Install]
+WantedBy=multi-user.target
+
+===== /etc/systemd/system/spb-digits.service =====
+[Unit]
+Description=SPB Digit Recognizer
+After=network.target
+
+[Service]
+User=www-data
+WorkingDirectory=/var/www/spb-club/digit-recognizer
+ExecStart=/opt/spb-venv/bin/gunicorn -w 1 -b 127.0.0.1:15007 --timeout 120 --preload --max-requests 1000 --max-requests-jitter 100 app:app
+Restart=always
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
+
+===== /etc/systemd/system/spb-members.service =====
+[Unit]
+Description=SPB Members Portal
+After=network.target
+
+[Service]
+User=www-data
+WorkingDirectory=/var/www/spb-club/members
+EnvironmentFile=/var/www/spb-club/members/.env
+ExecStart=/opt/spb-venv/bin/gunicorn -w 1 -b 127.0.0.1:15005 --timeout 60 --preload --max-requests 1000 --max-requests-jitter 100 app:app
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+
+===== /etc/systemd/system/spb-neural.service =====
+[Unit]
+Description=SPB Neural Net Visualizer
+After=network.target
+
+[Service]
+User=www-data
+WorkingDirectory=/var/www/spb-club/neural-net-visualizer
+ExecStart=/opt/spb-venv/bin/gunicorn -w 1 -b 127.0.0.1:15002 --timeout 120 --preload --max-requests 1000 --max-requests-jitter 100 app:app
+Restart=always
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
+
+===== /etc/systemd/system/spb-pathfinding.service =====
+[Unit]
+Description=SPB Pathfinding Visualizer
+After=network.target
+
+[Service]
+User=www-data
+WorkingDirectory=/var/www/spb-club/pathfinding-visualizer
+ExecStart=/opt/spb-venv/bin/gunicorn -w 1 -b 127.0.0.1:15008 --timeout 120 --preload --max-requests 1000 --max-requests-jitter 100 app:app
+Restart=always
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
+
+===== /etc/systemd/system/spb-photo.service =====
+[Unit]
+Description=SPB Photo Editor
+After=network.target
+
+[Service]
+User=www-data
+WorkingDirectory=/var/www/spb-club/photo-editor
+ExecStart=/opt/spb-venv/bin/gunicorn -w 1 -b 127.0.0.1:15010 --timeout 120 --preload --max-requests 1000 --max-requests-jitter 100 app:app
+Restart=always
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
+
+===== /etc/systemd/system/spb-sentiment.service =====
+[Unit]
+Description=SPB Sentiment Analyzer
+After=network.target
+
+[Service]
+User=www-data
+WorkingDirectory=/var/www/spb-club/sentiment-analyzer
+ExecStart=/opt/spb-venv/bin/gunicorn -w 1 -b 127.0.0.1:15003 --timeout 120 --preload --max-requests 1000 --max-requests-jitter 100 app:app
+Restart=always
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1 HF_HOME=/var/www/spb-club/.hf_cache
+
+[Install]
+WantedBy=multi-user.target
+
+===== /etc/systemd/system/spb-style.service =====
+[Unit]
+Description=SPB Art Style Transfer
+After=network.target
+
+[Service]
+User=www-data
+WorkingDirectory=/var/www/spb-club/style-transfer
+ExecStart=/opt/spb-venv/bin/gunicorn -w 1 -b 127.0.0.1:15006 --timeout 120 --preload --max-requests 1000 --max-requests-jitter 100 app:app
+Restart=always
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
+
+===== /etc/systemd/system/spb-textgen.service =====
+[Unit]
+Description=SPB Language Model Playground
+After=network.target
+
+[Service]
+User=www-data
+WorkingDirectory=/var/www/spb-club/text-generator
+ExecStart=/opt/spb-venv/bin/gunicorn -w 1 -b 127.0.0.1:15009 --timeout 120 --preload --max-requests 1000 --max-requests-jitter 100 app:app
+Restart=always
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
+
+############ DEPLOY CRON ############
+*/2 * * * * root /usr/local/bin/deploy-portfolio
+
+############ ENV VARIABLE NAMES PER APP (values redacted) ############
+[members]  SECRET_KEY=<redacted> GOOGLE_CLIENT_ID=<redacted> GOOGLE_CLIENT_SECRET=<redacted> ADMIN_EMAILS=<redacted> 
+
+############ installed spb services (which run) ############
+spb-chess.service running
+spb-classifier.service running
+spb-digits.service running
+spb-members.service running
+spb-neural.service running
+spb-pathfinding.service running
+spb-photo.service running
+spb-sentiment.service running
+spb-style.service running
+spb-textgen.service running

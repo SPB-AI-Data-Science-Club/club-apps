@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}Members{% endblock %} - SPB Data Science</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700&family=Public+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/members.css?v=5" />
+  <link rel="icon" type="image/png" href="/static/logo.png" />
+  {% block head %}{% endblock %}
+</head>
+<body>
+
+<header class="masthead">
+  <div class="masthead-inner">
+    <a class="brand" href="{{ '/dashboard' if current_user else '/curriculum' }}">
+      <img src="/static/logo.png" alt="SPB Data Science Club" />
+      <span class="brand-name">SPB <em>Data Science</em></span>
+    </a>
+
+    <button class="nav-toggle" id="navToggle" onclick="toggleNav()" aria-label="Open menu" aria-expanded="false">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+        <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+      </svg>
+    </button>
+
+    <div class="nav-collapse" id="navCollapse">
+      <nav class="nav-links">
+        {% if current_user %}
+        <a href="/dashboard" class="{% if active == 'dashboard' %}active{% endif %}">Dashboard</a>
+        <a href="/curriculum" class="{% if active == 'curriculum' %}active{% endif %}">Curriculum</a>
+        <a href="/learn" class="{% if active == 'learn' %}active{% endif %}">Learn</a>
+        <a href="/games" class="{% if active == 'games' %}active{% endif %}">Games</a>
+        <a href="/announcements" class="{% if active == 'announcements' %}active{% endif %}">Announcements</a>
+        {% else %}
+        <a href="/curriculum" class="{% if active == 'curriculum' %}active{% endif %}">Curriculum</a>
+        <a href="/demo">Demos</a>
+        {% endif %}
+      </nav>
+
+      <div class="nav-end">
+        {% if current_user %}
+        {% set more_active = active in ['resources', 'schedule', 'members'] %}
+        <div class="dd" id="moreDd">
+          <button class="more-btn {% if more_active %}active{% endif %}" onclick="toggleDd(event, 'moreDd')" aria-haspopup="true" aria-expanded="false">
+            More
+            <svg class="cv" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="dd-menu">
+            <a href="/resources" class="{% if active == 'resources' %}active{% endif %}">Resources</a>
+            <a href="/schedule" class="{% if active == 'schedule' %}active{% endif %}">Schedule</a>
+            <a href="/members" class="{% if active == 'members' %}active{% endif %}">Members</a>
+            <a href="/demo">Live demos</a>
+          </div>
+        </div>
+
+        <div class="dd" id="acctDd">
+          <button class="acct-btn" onclick="toggleDd(event, 'acctDd')" aria-haspopup="true" aria-expanded="false">
+            <span class="av">{{ current_user['name'][0]|upper }}</span>
+            <span class="who">{{ current_user['name'].split(' ')[0] }}</span>
+            <svg class="cv" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="dd-menu">
+            <div class="acct-head">
+              <span class="nm">{{ current_user['name'] }}</span>
+              <span class="role-badge role-{{ current_user['role'] }}">{{ current_user['role'] }}</span>
+            </div>
+            {% if current_user['role'] == 'admin' %}
+            <a href="/admin/progress" class="{% if active == 'admin_progress' %}active{% endif %}">Member progress</a>
+            <a href="/admin/pending" class="{% if active == 'admin_pending' %}active{% endif %}">Approvals{% if pending_count > 0 %} <span class="nav-badge">{{ pending_count }}</span>{% endif %}</a>
+            <div class="acct-mrule"></div>
+            {% endif %}
+            <a href="https://spbdatascience.org">Main site</a>
+            <a href="/logout">Sign out</a>
+          </div>
+        </div>
+        {% else %}
+        <a href="https://spbdatascience.org" class="nav-muted">Main site</a>
+        <a href="/login" class="nav-cta">Member sign in</a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="page-wrap">
+  {% block content %}{% endblock %}
+</main>
+
+<script>
+function toggleNav() {
+  var n = document.getElementById('navCollapse');
+  var t = document.getElementById('navToggle');
+  var open = n.classList.toggle('open');
+  t.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+function closeDds(except) {
+  document.querySelectorAll('.dd.open').forEach(function(d) {
+    if (d.id !== except) { d.classList.remove('open'); var b = d.querySelector('button'); if (b) b.setAttribute('aria-expanded', 'false'); }
+  });
+}
+function toggleDd(e, id) {
+  e.stopPropagation();
+  closeDds(id);
+  var d = document.getElementById(id);
+  var open = d.classList.toggle('open');
+  d.querySelector('button').setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+document.addEventListener('click', function() { closeDds(null); });
+document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeDds(null); });
+</script>
+</body>
+</html>

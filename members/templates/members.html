@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block title %}Members{% endblock %}
+
+{% block content %}
+<div class="main-header">
+  <h1 class="main-title">Members</h1>
+  <span style="font-size:.78rem;font-family:'JetBrains Mono',monospace;color:var(--text-muted);">
+    {{ admins|length + teachers|length + students|length }} approved
+  </span>
+</div>
+
+<div class="main-content">
+
+  {% if admins %}
+  <div class="members-section-label">Admins</div>
+  <div class="members-grid">
+    {% for m in admins %}
+    <div class="member-card">
+      <div class="member-name">{{ m['name'] }}</div>
+      <div class="member-meta">
+        <span class="role-badge role-admin">Admin</span>
+        <span class="member-detail">{{ m['division'] }}</span>
+        <span class="member-detail">Grade {{ m['grade'] }}</span>
+      </div>
+      <div class="member-detail" style="margin-top:.1rem;">{{ m['email'] }}</div>
+      {% if current_user and current_user['role'] == 'admin' and m['id'] != current_user['id'] %}
+      <form method="POST" action="/admin/user/role/{{ m['id'] }}" class="member-role-form">
+        <select name="role">
+          <option value="admin" {% if m['role']=='admin' %}selected{% endif %}>Admin</option>
+          <option value="teacher" {% if m['role']=='teacher' %}selected{% endif %}>Teacher</option>
+          <option value="student" {% if m['role']=='student' %}selected{% endif %}>Student</option>
+        </select>
+        <button type="submit" class="btn btn-ghost btn-sm">Set</button>
+      </form>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if teachers %}
+  <div class="members-section-label">Teachers</div>
+  <div class="members-grid">
+    {% for m in teachers %}
+    <div class="member-card">
+      <div class="member-name">{{ m['name'] }}</div>
+      <div class="member-meta">
+        <span class="role-badge role-teacher">Teacher</span>
+        <span class="member-detail">{{ m['division'] }}</span>
+      </div>
+      <div class="member-detail" style="margin-top:.1rem;">{{ m['email'] }}</div>
+      {% if current_user and current_user['role'] == 'admin' %}
+      <form method="POST" action="/admin/user/role/{{ m['id'] }}" class="member-role-form">
+        <select name="role">
+          <option value="admin" {% if m['role']=='admin' %}selected{% endif %}>Admin</option>
+          <option value="teacher" {% if m['role']=='teacher' %}selected{% endif %}>Teacher</option>
+          <option value="student" {% if m['role']=='student' %}selected{% endif %}>Student</option>
+        </select>
+        <button type="submit" class="btn btn-ghost btn-sm">Set</button>
+      </form>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if students %}
+  <div class="members-section-label">Students</div>
+  <div class="members-grid">
+    {% for m in students %}
+    <div class="member-card">
+      <div class="member-name">{{ m['name'] }}</div>
+      <div class="member-meta">
+        <span class="role-badge role-student">Student</span>
+        <span class="member-detail">{{ m['division'] }}</span>
+        <span class="member-detail">Grade {{ m['grade'] }}</span>
+      </div>
+      {% if current_user and current_user['role'] == 'admin' %}
+      <form method="POST" action="/admin/user/role/{{ m['id'] }}" class="member-role-form">
+        <select name="role">
+          <option value="admin" {% if m['role']=='admin' %}selected{% endif %}>Admin</option>
+          <option value="teacher" {% if m['role']=='teacher' %}selected{% endif %}>Teacher</option>
+          <option value="student" {% if m['role']=='student' %}selected{% endif %}>Student</option>
+        </select>
+        <button type="submit" class="btn btn-ghost btn-sm">Set</button>
+      </form>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if not admins and not teachers and not students %}
+  <div class="empty">
+    <div class="empty-icon">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+      </svg>
+    </div>
+    No approved members yet.
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

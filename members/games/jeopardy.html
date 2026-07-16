@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Club Jeopardy - SPB Data Science</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --burgundy:#3f74d4; --burgundy-l:#6494e8; --burgundy-d:#16294e;
+    --bg:#0c1322; --surface:#141f36; --surface-2:#18233c;
+    --board:#0a2a6b; --board-l:#123a8c; --gold:#f2c14e; --gold-d:#c99a2e;
+    --border:#22304d; --border-l:#2c3b5e;
+    --text:#e9eef8; --text-muted:#6e7f9d; --text-dim:#9fb0cb;
+    --green:#4ade80; --red:#f87171;
+    --radius:12px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    font-family:'Public Sans',sans-serif; background:var(--bg); color:var(--text);
+    min-height:100vh; -webkit-font-smoothing:antialiased;
+    background-image:radial-gradient(1200px 600px at 50% -10%, #142a55 0%, transparent 60%);
+  }
+  .wrap{max-width:1200px;margin:0 auto;padding:24px 20px 60px}
+  .mono{font-family:'JetBrains Mono',monospace}
+  button{font-family:inherit;cursor:pointer;border:none}
+  .hidden{display:none !important}
+
+  /* Top bar */
+  .topbar{display:flex;align-items:center;gap:14px;margin-bottom:22px;flex-wrap:wrap}
+  .topbar h1{font-size:1.35rem;font-weight:800;letter-spacing:-.01em}
+  .topbar .set-name{color:var(--text-muted);font-size:.9rem;font-weight:600}
+  .topbar .spacer{flex:1}
+  .btn{background:var(--surface-2);color:var(--text);border:1px solid var(--border-l);
+    padding:.5rem .9rem;border-radius:8px;font-weight:600;font-size:.85rem;transition:.15s}
+  .btn:hover{background:#20304f;border-color:#3a4c74}
+  .btn-primary{background:var(--burgundy);border-color:var(--burgundy);color:#fff}
+  .btn-primary:hover{background:var(--burgundy-l);border-color:var(--burgundy-l)}
+  .btn-gold{background:var(--gold);border-color:var(--gold);color:#1a1305}
+  .btn-gold:hover{background:#f7ce6b}
+
+  /* ── Setup screen ── */
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:26px}
+  .setup h2{font-size:1.1rem;font-weight:800;margin-bottom:6px}
+  .setup .hint{color:var(--text-muted);font-size:.9rem;margin-bottom:20px;line-height:1.5}
+  .field{margin-bottom:20px}
+  .field label{display:block;font-size:.8rem;font-weight:700;text-transform:uppercase;
+    letter-spacing:.05em;color:var(--text-dim);margin-bottom:8px}
+  select,input[type=text]{width:100%;background:var(--bg);border:1px solid var(--border-l);
+    color:var(--text);padding:.7rem .8rem;border-radius:8px;font-family:inherit;font-size:.95rem}
+  select:focus,input:focus{outline:none;border-color:var(--burgundy)}
+  .teams-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
+  .team-input{display:flex;align-items:center;gap:8px}
+  .team-swatch{width:20px;height:20px;border-radius:5px;flex-shrink:0}
+  .team-count-row{display:flex;gap:8px;margin-bottom:16px}
+  .count-btn{width:42px;height:42px;border-radius:8px;background:var(--bg);
+    border:1px solid var(--border-l);color:var(--text);font-weight:800;font-size:1.05rem}
+  .count-btn.active{background:var(--burgundy);border-color:var(--burgundy);color:#fff}
+  .setup-actions{display:flex;gap:12px;margin-top:8px;align-items:center;flex-wrap:wrap}
+  .file-note{color:var(--text-muted);font-size:.82rem}
+
+  /* ── Scoreboard ── */
+  .scoreboard{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px}
+  .team-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;
+    padding:14px 16px;position:relative;overflow:hidden;transition:.2s}
+  .team-card.active-turn{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold)}
+  .team-card .bar{position:absolute;top:0;left:0;width:5px;height:100%}
+  .team-card .tname{font-weight:700;font-size:.9rem;margin-bottom:4px;padding-left:6px;
+    display:flex;align-items:center;gap:6px}
+  .team-card .tscore{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:1.6rem;padding-left:6px}
+  .tscore.neg{color:var(--red)}
+  .turn-tag{font-size:.62rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em;
+    color:var(--gold);border:1px solid var(--gold);border-radius:4px;padding:1px 5px}
+
+  /* ── Board ── */
+  .board{display:grid;gap:8px}
+  .board-col{display:grid;gap:8px}
+  .cat-head{background:var(--board);border:1px solid var(--board-l);border-radius:8px;
+    min-height:70px;display:flex;align-items:center;justify-content:center;text-align:center;
+    padding:10px 8px;font-weight:800;font-size:.82rem;line-height:1.2;text-transform:uppercase;
+    letter-spacing:.02em;color:#dbe6ff}
+  .cell{background:var(--board-l);border:1px solid #1c4aa8;border-radius:8px;min-height:78px;
+    display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;
+    font-weight:700;font-size:1.7rem;color:var(--gold);transition:.12s;user-select:none}
+  .cell:hover{background:#16419b;transform:translateY(-2px);box-shadow:0 6px 18px #0006}
+  .cell.used{background:var(--surface);border-color:var(--border);color:transparent;cursor:default;
+    transform:none;box-shadow:none}
+  .cell.used:hover{background:var(--surface)}
+
+  /* ── Clue modal ── */
+  .overlay{position:fixed;inset:0;background:#060a14ee;backdrop-filter:blur(4px);
+    display:flex;align-items:center;justify-content:center;padding:24px;z-index:50}
+  .clue-box{background:var(--board);border:2px solid var(--board-l);border-radius:16px;
+    max-width:900px;width:100%;padding:44px 40px;text-align:center;box-shadow:0 24px 80px #000a}
+  .clue-cat{font-size:.85rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;
+    color:var(--burgundy-l);margin-bottom:6px}
+  .clue-val{font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--gold);
+    font-size:1.4rem;margin-bottom:22px}
+  .clue-text{font-size:1.9rem;font-weight:700;line-height:1.35;margin-bottom:12px}
+  .clue-answer{font-size:1.5rem;font-weight:800;color:var(--gold);margin:24px 0 8px;
+    padding-top:22px;border-top:1px solid #ffffff22}
+  .clue-hint{color:#9fb4e0;font-size:.85rem;margin-top:18px}
+  .reveal-btn{margin-top:26px}
+  .award-row{margin-top:26px}
+  .award-label{font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;
+    color:#9fb4e0;margin-bottom:12px}
+  .award-teams{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+  .award-btn{padding:.6rem 1rem;border-radius:8px;font-weight:700;font-size:.9rem;color:#fff;
+    display:flex;align-items:center;gap:7px;border:1px solid #ffffff33}
+  .award-btn .dot{width:14px;height:14px;border-radius:4px}
+  .award-btn:hover{filter:brightness(1.15)}
+  .award-none{background:#ffffff18;border:1px solid #ffffff33;color:#dbe6ff;padding:.6rem 1rem;
+    border-radius:8px;font-weight:700;font-size:.9rem}
+  .award-none:hover{background:#ffffff28}
+
+  /* Daily Double */
+  .dd-splash .clue-text{color:var(--gold)}
+  .dd-badge{display:inline-block;background:var(--gold);color:#1a1305;font-weight:900;
+    padding:.3rem .9rem;border-radius:6px;letter-spacing:.08em;font-size:.9rem;margin-bottom:18px}
+  .wager-row{margin:20px 0}
+  .wager-row input{max-width:220px;margin:0 auto;text-align:center;font-size:1.2rem;
+    font-family:'JetBrains Mono',monospace}
+  .wager-teams{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:14px 0}
+  .wager-pick{padding:.45rem .8rem;border-radius:7px;font-weight:700;font-size:.85rem;color:#fff;
+    border:1px solid #ffffff33;opacity:.55}
+  .wager-pick.sel{opacity:1;box-shadow:0 0 0 2px #fff6}
+
+  /* ── Winner ── */
+  .winner-box{text-align:center;padding:40px}
+  .winner-box .crown{font-size:.8rem;font-weight:800;text-transform:uppercase;letter-spacing:.1em;color:var(--gold)}
+  .winner-box .wname{font-size:2.4rem;font-weight:900;margin:8px 0 4px}
+  .winner-box .wscore{font-family:'JetBrains Mono',monospace;font-size:1.3rem;color:var(--text-dim)}
+  .final-list{max-width:420px;margin:26px auto 0;text-align:left}
+  .final-row{display:flex;justify-content:space-between;padding:10px 14px;border-radius:8px;
+    background:var(--surface);border:1px solid var(--border);margin-bottom:8px;font-weight:600}
+  .final-row .fs{font-family:'JetBrains Mono',monospace;font-weight:700}
+
+  .foot{margin-top:28px;text-align:center;color:var(--text-muted);font-size:.78rem;line-height:1.6}
+  kbd{font-family:'JetBrains Mono',monospace;background:var(--surface-2);border:1px solid var(--border-l);
+    border-radius:4px;padding:1px 6px;font-size:.72rem;color:var(--text-dim)}
+
+  @media(max-width:640px){
+    .clue-text{font-size:1.4rem} .cell{font-size:1.2rem;min-height:60px}
+    .cat-head{font-size:.68rem} .board{gap:5px} .board-col{gap:5px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="topbar">
+    <h1>Club Jeopardy</h1>
+    <span class="set-name mono" id="setName"></span>
+    <span class="spacer"></span>
+    <button class="btn hidden" id="btnRestart" onclick="game.confirmRestart()">New game</button>
+  </div>
+
+  <!-- ══ SETUP ══ -->
+  <div class="card setup" id="setupScreen">
+    <h2>Set up the game</h2>
+    <p class="hint">Pick a question set and add your teams. Teams take turns picking a tile; you (the host) award
+      points after each answer. Everything runs offline in this one file, so it works on a projector with no internet.</p>
+
+    <div class="field">
+      <label>Question set</label>
+      <select id="setSelect"></select>
+    </div>
+
+    <div class="field">
+      <label>Number of teams</label>
+      <div class="team-count-row" id="countRow"></div>
+      <div class="teams-grid" id="teamInputs"></div>
+    </div>
+
+    <div class="setup-actions">
+      <button class="btn-primary btn" onclick="game.start()">Start game</button>
+      <label class="btn" style="display:inline-block">
+        Load custom set (.json)
+        <input type="file" accept=".json,application/json" id="fileInput" class="hidden" />
+      </label>
+      <span class="file-note" id="fileNote"></span>
+    </div>
+  </div>
+
+  <!-- ══ GAME ══ -->
+  <div id="gameScreen" class="hidden">
+    <div class="scoreboard" id="scoreboard"></div>
+    <div class="board" id="board"></div>
+  </div>
+
+  <!-- ══ WINNER ══ -->
+  <div id="winnerScreen" class="hidden">
+    <div class="card winner-box" id="winnerBox"></div>
+  </div>
+
+  <div class="foot">
+    Host controls: click a tile to open the clue, <kbd>Space</kbd> reveals the answer, then click the team that got it
+    (or "No one").&nbsp; <kbd>Esc</kbd> closes a clue.<br/>
+    To add a set for a meeting, drop a <span class="mono">.json</span> file next to this page and use "Load custom set",
+    or ask Claude Code to add one.
+  </div>
+</div>
+
+<!-- ══ CLUE OVERLAY ══ -->
+<div class="overlay hidden" id="overlay">
+  <div class="clue-box" id="clueBox"></div>
+</div>
+
+<script>
+/* ============================================================================
+   EMBEDDED QUESTION SETS
+   Each set: { title, categories:[ { name, clues:[ {value, clue, answer, dd?} ] } ] }
+   - "clue"   = what the board shows (a statement / definition).
+   - "answer" = the correct response (Jeopardy style, phrased as a question).
+   - "dd"     = optional true to mark a Daily Double (team wagers before seeing it).
+   Add more sets here, or load one at runtime via "Load custom set".
+   ========================================================================== */
+const EMBEDDED_SETS = [
+{
+  id: "ml_basics",
+  title: "Machine Learning Basics",
+  categories: [
+    { name: "Learning Types", clues: [
+      { value:100, clue:"Training a model on data that includes the correct answers (labels).", answer:"What is supervised learning?" },
+      { value:200, clue:"Finding structure in data that has no labels, like grouping similar customers.", answer:"What is unsupervised learning?" },
+      { value:300, clue:"An agent learns by trial and error, collecting rewards for good actions.", answer:"What is reinforcement learning?" },
+      { value:400, clue:"The supervised task of predicting a continuous number, like a house price.", answer:"What is regression?", dd:true },
+      { value:500, clue:"The supervised task of sorting inputs into discrete categories, like spam or not spam.", answer:"What is classification?" },
+    ]},
+    { name: "Model Trouble", clues: [
+      { value:100, clue:"When a model memorizes the training data and fails on new data.", answer:"What is overfitting?" },
+      { value:200, clue:"When a model is too simple to capture the pattern, doing poorly even on training data.", answer:"What is underfitting?" },
+      { value:300, clue:"The data you hold back to check how the model does on examples it never trained on.", answer:"What is the test set (or validation set)?" },
+      { value:400, clue:"Splitting data into several folds to get a more reliable estimate of performance.", answer:"What is cross-validation?" },
+      { value:500, clue:"The tug-of-war between a model being too simple and too complex.", answer:"What is the bias-variance tradeoff?" },
+    ]},
+    { name: "The Toolbox", clues: [
+      { value:100, clue:"The Python library whose name you import as sklearn for classic ML.", answer:"What is scikit-learn?" },
+      { value:200, clue:"The library of labeled arrays and DataFrames used to clean and shape data.", answer:"What is pandas?" },
+      { value:300, clue:"The array library that makes fast numeric math in Python possible.", answer:"What is NumPy?" },
+      { value:400, clue:"A deep learning framework from Meta, popular in research, that uses tensors and autograd.", answer:"What is PyTorch?" },
+      { value:500, clue:"The go-to Python library for making plots and charts.", answer:"What is Matplotlib?" },
+    ]},
+    { name: "Under the Hood", clues: [
+      { value:100, clue:"The numbers a model learns during training, like the weights of a line.", answer:"What are parameters?" },
+      { value:200, clue:"The optimization method that repeatedly nudges parameters downhill to reduce error.", answer:"What is gradient descent?" },
+      { value:300, clue:"The function that measures how wrong a model's predictions are.", answer:"What is a loss function?" },
+      { value:400, clue:"One full pass of the learning algorithm over the entire training dataset.", answer:"What is an epoch?", dd:true },
+      { value:500, clue:"A setting you choose before training (like learning rate) rather than one the model learns.", answer:"What is a hyperparameter?" },
+    ]},
+    { name: "Scoring Models", clues: [
+      { value:100, clue:"The fraction of predictions a classifier got right.", answer:"What is accuracy?" },
+      { value:200, clue:"Of everything the model flagged as positive, the share that truly was positive.", answer:"What is precision?" },
+      { value:300, clue:"Of all the truly positive cases, the share the model actually caught.", answer:"What is recall?" },
+      { value:400, clue:"The grid that lays out true positives, false positives, and their friends.", answer:"What is a confusion matrix?" },
+      { value:500, clue:"The single score that balances precision and recall as their harmonic mean.", answer:"What is the F1 score?" },
+    ]},
+  ]
+},
+{
+  id: "python",
+  title: "Python and Data Wrangling",
+  categories: [
+    { name: "Core Python", clues: [
+      { value:100, clue:"The ordered, changeable collection written with square brackets.", answer:"What is a list?" },
+      { value:200, clue:"The key-value collection written with curly braces.", answer:"What is a dictionary?" },
+      { value:300, clue:"The immutable ordered collection written with parentheses.", answer:"What is a tuple?" },
+      { value:400, clue:"A compact one-line way to build a list, like [x*x for x in nums].", answer:"What is a list comprehension?", dd:true },
+      { value:500, clue:"The keyword that defines a reusable block of code you can call.", answer:"What is def (a function)?" },
+    ]},
+    { name: "Pandas Moves", clues: [
+      { value:100, clue:"The two-dimensional labeled table at the heart of pandas.", answer:"What is a DataFrame?" },
+      { value:200, clue:"The method that shows the first few rows of a DataFrame.", answer:"What is head()?" },
+      { value:300, clue:"Splitting data into buckets and summarizing each, like average score per grade.", answer:"What is groupby?" },
+      { value:400, clue:"Combining two DataFrames on a shared key, like a SQL join.", answer:"What is merge (or join)?" },
+      { value:500, clue:"Empty cells pandas marks as NaN that you often fill or drop.", answer:"What are missing values?" },
+    ]},
+    { name: "Clean It Up", clues: [
+      { value:100, clue:"Removing duplicate rows so each record counts once.", answer:"What is deduplication?" },
+      { value:200, clue:"Rescaling features to a common range so no single one dominates.", answer:"What is normalization (or scaling)?" },
+      { value:300, clue:"Turning a category like color into numeric columns the model can read.", answer:"What is one-hot encoding?" },
+      { value:400, clue:"An unusually extreme value that can distort your analysis.", answer:"What is an outlier?", dd:true },
+      { value:500, clue:"Creating new informative columns from existing data to help a model.", answer:"What is feature engineering?" },
+    ]},
+    { name: "Charts", clues: [
+      { value:100, clue:"The chart of bars used to compare amounts across categories.", answer:"What is a bar chart?" },
+      { value:200, clue:"The chart of dots used to show the relationship between two numeric variables.", answer:"What is a scatter plot?" },
+      { value:300, clue:"The chart that shows how a single numeric variable is distributed using bins.", answer:"What is a histogram?" },
+      { value:400, clue:"The chart best for showing a trend over time.", answer:"What is a line chart?" },
+      { value:500, clue:"A colored grid often used to show a correlation matrix.", answer:"What is a heatmap?" },
+    ]},
+    { name: "Data Words", clues: [
+      { value:100, clue:"A single column in a dataset, also called a feature.", answer:"What is a variable (or feature)?" },
+      { value:200, clue:"A single row in a dataset, one example or observation.", answer:"What is a record (or sample)?" },
+      { value:300, clue:"The column you are trying to predict.", answer:"What is the target (or label)?" },
+      { value:400, clue:"Exploring data with summaries and plots before modeling, abbreviated EDA.", answer:"What is exploratory data analysis?" },
+      { value:500, clue:"The comma-separated text format datasets are commonly stored in.", answer:"What is a CSV file?" },
+    ]},
+  ]
+},
+{
+  id: "metrics",
+  title: "Model Metrics",
+  categories: [
+    { name: "Confusion Matrix", clues: [
+      { value:100, clue:"A positive case the model correctly called positive.", answer:"What is a true positive?" },
+      { value:200, clue:"A negative case the model wrongly called positive.", answer:"What is a false positive?" },
+      { value:300, clue:"A positive case the model missed and called negative.", answer:"What is a false negative?" },
+      { value:400, clue:"The grid that lays out all four of those outcomes at once.", answer:"What is the confusion matrix?", dd:true },
+      { value:500, clue:"A false positive is also known by this statistics term.", answer:"What is a Type I error?" },
+    ]},
+    { name: "Precision vs Recall", clues: [
+      { value:100, clue:"Of everything flagged positive, the share that truly was.", answer:"What is precision?" },
+      { value:200, clue:"Of all true positives, the share the model actually caught.", answer:"What is recall?" },
+      { value:300, clue:"The metric that balances the two as a harmonic mean.", answer:"What is the F1 score?" },
+      { value:400, clue:"For a spam filter that must never trash a real email, optimize this one.", answer:"What is precision?" },
+      { value:500, clue:"For a cancer screen that must not miss a case, optimize this one.", answer:"What is recall?", dd:true },
+    ]},
+    { name: "Curves", clues: [
+      { value:100, clue:"The curve that plots true positive rate against false positive rate.", answer:"What is the ROC curve?" },
+      { value:200, clue:"The single number summarizing that curve, from 0.5 to 1.", answer:"What is AUC?" },
+      { value:300, clue:"An AUC of this value means the model is guessing at random.", answer:"What is 0.5?" },
+      { value:400, clue:"This curve is more informative than ROC when classes are very imbalanced.", answer:"What is the precision-recall curve?" },
+      { value:500, clue:"Moving the decision threshold trades off these two rates.", answer:"What are true positive rate and false positive rate?" },
+    ]},
+    { name: "Validation", clues: [
+      { value:100, clue:"The data held back to test a model on unseen examples.", answer:"What is the test set?" },
+      { value:200, clue:"Splitting data into k folds and rotating which one is held out.", answer:"What is cross-validation?" },
+      { value:300, clue:"Reporting accuracy on the training set commits this mistake.", answer:"What is testing on training data?" },
+      { value:400, clue:"The fraction of all predictions that are correct.", answer:"What is accuracy?" },
+      { value:500, clue:"Why accuracy misleads when 99 percent of cases are one class.", answer:"What is class imbalance?" },
+    ]},
+    { name: "Curveballs", clues: [
+      { value:100, clue:"A model that predicts positive for everything has perfect recall but poor this.", answer:"What is precision?" },
+      { value:200, clue:"High training accuracy with low test accuracy signals this.", answer:"What is overfitting?" },
+      { value:300, clue:"The gap between train and test performance is often called this.", answer:"What is the generalization gap?" },
+      { value:400, clue:"A feature that secretly encodes the answer inflates scores through this.", answer:"What is data leakage?" },
+      { value:500, clue:"The baseline you compare against by always guessing the majority class.", answer:"What is a majority-class baseline?", dd:true },
+    ]},
+  ]
+},
+{
+  id: "review",
+  title: "Semester Review",
+  categories: [
+    { name: "Foundations", clues: [
+      { value:100, clue:"Learning from labeled examples.", answer:"What is supervised learning?" },
+      { value:200, clue:"The function a model tries to minimize.", answer:"What is the loss function?" },
+      { value:300, clue:"Memorizing training data and failing on new data.", answer:"What is overfitting?" },
+      { value:400, clue:"The optimizer that steps downhill along the gradient.", answer:"What is gradient descent?" },
+      { value:500, clue:"The tug of war between a model too simple and one too complex.", answer:"What is the bias-variance tradeoff?", dd:true },
+    ]},
+    { name: "Trees and Forests", clues: [
+      { value:100, clue:"The measure of how mixed a node's labels are.", answer:"What is Gini impurity (or entropy)?" },
+      { value:200, clue:"Combining many trees trained on bootstrap samples.", answer:"What is a random forest?" },
+      { value:300, clue:"Building models in sequence, each fixing the last one's errors.", answer:"What is boosting?" },
+      { value:400, clue:"The popular library for gradient boosted trees.", answer:"What is XGBoost?" },
+      { value:500, clue:"Stopping training once validation error stops improving.", answer:"What is early stopping?" },
+    ]},
+    { name: "Unsupervised", clues: [
+      { value:100, clue:"Grouping data into k clusters around centroids.", answer:"What is k-means?" },
+      { value:200, clue:"The plot used to pick a good number of clusters.", answer:"What is the elbow method?" },
+      { value:300, clue:"Squeezing many features into a few components.", answer:"What is PCA?" },
+      { value:400, clue:"The clustering method that finds dense regions and marks outliers.", answer:"What is DBSCAN?" },
+      { value:500, clue:"The nonlinear method that makes 2D maps of high-dimensional data.", answer:"What is t-SNE?" },
+    ]},
+    { name: "Deep Learning", clues: [
+      { value:100, clue:"The algorithm that updates weights using the chain rule.", answer:"What is backpropagation?" },
+      { value:200, clue:"The layer type built for images.", answer:"What is a convolutional layer?" },
+      { value:300, clue:"Turning a word into a vector of numbers.", answer:"What is an embedding?" },
+      { value:400, clue:"The mechanism that lets each word weigh every other word.", answer:"What is attention?", dd:true },
+      { value:500, clue:"The architecture behind modern language models.", answer:"What is the transformer?" },
+    ]},
+    { name: "LLMs and Ethics", clues: [
+      { value:100, clue:"Breaking text into the pieces a model reads.", answer:"What is tokenization?" },
+      { value:200, clue:"The core thing a language model predicts.", answer:"What is the next token?" },
+      { value:300, clue:"The setting that makes model output more or less random.", answer:"What is temperature?" },
+      { value:400, clue:"When a model states something false with confidence.", answer:"What is a hallucination?" },
+      { value:500, clue:"When a model treats groups unequally because of skewed data.", answer:"What is bias?" },
+    ]},
+  ]
+}
+];
+
+/* ============================================================================
+   GAME ENGINE
+   ========================================================================== */
+const TEAM_COLORS = ["#3f74d4","#e0524d","#4ade80","#f2c14e","#a06de0","#2dd4bf"];
+
+const game = {
+  sets: EMBEDDED_SETS.slice(),
+  set: null,
+  teamCount: 3,
+  teams: [],
+  turn: 0,
+  cells: [],        // flattened {catIdx, clueIdx, used}
+  current: null,    // active clue context
+
+  init(){
+    // Populate set dropdown
+    const sel = document.getElementById('setSelect');
+    this.renderSetOptions();
+    sel.addEventListener('change', ()=> this.previewSetName());
+    // Team count buttons
+    const row = document.getElementById('countRow');
+    [2,3,4,5,6].forEach(n=>{
+      const b=document.createElement('button');
+      b.className='count-btn'+(n===this.teamCount?' active':'');
+      b.textContent=n; b.onclick=()=>this.setTeamCount(n);
+      row.appendChild(b);
+    });
+    this.renderTeamInputs();
+    // File loader
+    document.getElementById('fileInput').addEventListener('change', e=>this.loadFile(e));
+    // Keyboard
+    document.addEventListener('keydown', e=>this.onKey(e));
+    // Preselect a board when opened with ?set=<id> (from the portal console).
+    const want=new URLSearchParams(location.search).get('set');
+    if(want){
+      const idx=this.sets.findIndex(s=>s.id===want);
+      if(idx>=0) sel.value=idx;
+    }
+    this.previewSetName();
+  },
+
+  renderSetOptions(){
+    const sel=document.getElementById('setSelect');
+    sel.innerHTML='';
+    this.sets.forEach((s,i)=>{
+      const o=document.createElement('option'); o.value=i; o.textContent=s.title; sel.appendChild(o);
+    });
+  },
+
+  previewSetName(){
+    const i=+document.getElementById('setSelect').value||0;
+    const s=this.sets[i];
+    document.getElementById('setName').textContent = s ? '/ '+s.title : '';
+  },
+
+  setTeamCount(n){
+    this.teamCount=n;
+    document.querySelectorAll('.count-btn').forEach(b=>b.classList.toggle('active', +b.textContent===n));
+    this.renderTeamInputs();
+  },
+
+  renderTeamInputs(){
+    const g=document.getElementById('teamInputs'); g.innerHTML='';
+    for(let i=0;i<this.teamCount;i++){
+      const wrap=document.createElement('div'); wrap.className='team-input';
+      const sw=document.createElement('div'); sw.className='team-swatch';
+      sw.style.background=TEAM_COLORS[i%TEAM_COLORS.length];
+      const inp=document.createElement('input'); inp.type='text';
+      inp.placeholder='Team '+(i+1); inp.value=inp.value||('Team '+(i+1));
+      inp.dataset.team=i; inp.id='teamName'+i;
+      wrap.appendChild(sw); wrap.appendChild(inp); g.appendChild(wrap);
+    }
+  },
+
+  loadFile(e){
+    const f=e.target.files[0]; if(!f) return;
+    const note=document.getElementById('fileNote');
+    const r=new FileReader();
+    r.onload=()=>{
+      try{
+        const data=JSON.parse(r.result);
+        if(!data.title||!Array.isArray(data.categories)) throw new Error('missing title/categories');
+        data.categories.forEach(c=>{
+          if(!c.name||!Array.isArray(c.clues)) throw new Error('bad category');
+        });
+        this.sets.push(data);
+        this.renderSetOptions();
+        document.getElementById('setSelect').value=this.sets.length-1;
+        this.previewSetName();
+        note.style.color='var(--green)';
+        note.textContent='Loaded "'+data.title+'"';
+      }catch(err){
+        note.style.color='var(--red)';
+        note.textContent='Could not read that file: '+err.message;
+      }
+    };
+    r.readAsText(f);
+  },
+
+  start(){
+    const i=+document.getElementById('setSelect').value||0;
+    this.set=this.sets[i];
+    if(!this.set){return;}
+    // Build teams
+    this.teams=[];
+    for(let t=0;t<this.teamCount;t++){
+      const nm=(document.getElementById('teamName'+t).value||'').trim()||('Team '+(t+1));
+      this.teams.push({name:nm, score:0, color:TEAM_COLORS[t%TEAM_COLORS.length]});
+    }
+    this.turn=0;
+    // Build cell state
+    this.cells={};
+    document.getElementById('setupScreen').classList.add('hidden');
+    document.getElementById('winnerScreen').classList.add('hidden');
+    document.getElementById('gameScreen').classList.remove('hidden');
+    document.getElementById('btnRestart').classList.remove('hidden');
+    document.getElementById('setName').textContent='/ '+this.set.title;
+    this.renderScoreboard();
+    this.renderBoard();
+  },
+
+  renderScoreboard(){
+    const sb=document.getElementById('scoreboard'); sb.innerHTML='';
+    this.teams.forEach((t,i)=>{
+      const c=document.createElement('div');
+      c.className='team-card'+(i===this.turn?' active-turn':'');
+      const neg=t.score<0?' neg':'';
+      c.innerHTML=`<div class="bar" style="background:${t.color}"></div>
+        <div class="tname">${esc(t.name)} ${i===this.turn?'<span class="turn-tag">turn</span>':''}</div>
+        <div class="tscore${neg}">${t.score<0?'-':''}$${Math.abs(t.score)}</div>`;
+      c.onclick=()=>{ this.turn=i; this.renderScoreboard(); };
+      sb.appendChild(c);
+    });
+  },
+
+  renderBoard(){
+    const b=document.getElementById('board'); b.innerHTML='';
+    const cats=this.set.categories;
+    b.style.gridTemplateColumns=`repeat(${cats.length}, 1fr)`;
+    cats.forEach((cat,ci)=>{
+      const col=document.createElement('div'); col.className='board-col';
+      const h=document.createElement('div'); h.className='cat-head'; h.textContent=cat.name;
+      col.appendChild(h);
+      cat.clues.forEach((clue,qi)=>{
+        const key=ci+'-'+qi;
+        const cell=document.createElement('div');
+        const used=this.cells[key];
+        cell.className='cell'+(used?' used':'');
+        cell.textContent=used?'':('$'+clue.value);
+        if(!used) cell.onclick=()=>this.openClue(ci,qi);
+        col.appendChild(cell);
+      });
+      b.appendChild(col);
+    });
+  },
+
+  openClue(ci,qi){
+    const cat=this.set.categories[ci];
+    const clue=cat.clues[qi];
+    this.current={ci,qi,clue,cat,revealed:false,wager:null,ddTeam:this.turn};
+    if(clue.dd){ this.renderDailyDouble(); }
+    else { this.renderClue(); }
+    document.getElementById('overlay').classList.remove('hidden');
+  },
+
+  renderDailyDouble(){
+    const {clue}=this.current;
+    const box=document.getElementById('clueBox');
+    box.className='clue-box dd-splash';
+    const teamBtns=this.teams.map((t,i)=>
+      `<button class="wager-pick${i===this.current.ddTeam?' sel':''}" style="background:${t.color}"
+        onclick="game.pickDDTeam(${i})">${esc(t.name)}</button>`).join('');
+    box.innerHTML=`
+      <div class="dd-badge">DAILY DOUBLE</div>
+      <div class="clue-cat">${esc(this.current.cat.name)}</div>
+      <div class="award-label">Which team found it?</div>
+      <div class="wager-teams">${teamBtns}</div>
+      <div class="award-label">Wager (up to their score, min $100)</div>
+      <div class="wager-row">
+        <input type="text" inputmode="numeric" id="wagerInput" value="${Math.max(100,clue.value)}" />
+      </div>
+      <button class="btn-gold btn" onclick="game.confirmWager()">Reveal clue</button>`;
+  },
+
+  pickDDTeam(i){ this.current.ddTeam=i;
+    document.querySelectorAll('.wager-pick').forEach((b,idx)=>b.classList.toggle('sel',idx===i)); },
+
+  confirmWager(){
+    let w=parseInt((document.getElementById('wagerInput').value||'').replace(/[^0-9]/g,''),10);
+    if(isNaN(w)||w<100) w=100;
+    const cap=Math.max(this.teams[this.current.ddTeam].score, this.current.clue.value, 500);
+    if(w>cap) w=cap;
+    this.current.wager=w;
+    this.renderClue();
+  },
+
+  renderClue(){
+    const {clue,cat,wager}=this.current;
+    const box=document.getElementById('clueBox');
+    box.className='clue-box';
+    const val = wager!=null ? wager : clue.value;
+    box.innerHTML=`
+      <div class="clue-cat">${esc(cat.name)}</div>
+      <div class="clue-val">${wager!=null?'Daily Double - ':''}$${val}</div>
+      <div class="clue-text">${esc(clue.clue)}</div>
+      <div id="answerSlot"></div>
+      <div class="clue-hint">Press <span class="mono">Space</span> or click below to reveal the answer</div>
+      <button class="btn-gold btn reveal-btn" id="revealBtn" onclick="game.reveal()">Reveal answer</button>`;
+  },
+
+  reveal(){
+    if(!this.current||this.current.revealed) return;
+    this.current.revealed=true;
+    const {clue,wager}=this.current;
+    const val = wager!=null ? wager : clue.value;
+    document.getElementById('answerSlot').innerHTML=`<div class="clue-answer">${esc(clue.answer)}</div>`;
+    const btn=document.getElementById('revealBtn'); if(btn) btn.remove();
+    const hint=document.querySelector('#clueBox .clue-hint'); if(hint) hint.remove();
+
+    // Award row
+    const box=document.getElementById('clueBox');
+    const row=document.createElement('div'); row.className='award-row';
+    if(wager!=null){
+      // Daily double: only the wagering team, right or wrong
+      const t=this.teams[this.current.ddTeam];
+      row.innerHTML=`<div class="award-label">Did ${esc(t.name)} get it right?</div>
+        <div class="award-teams">
+          <button class="award-btn" style="background:var(--green);color:#052"
+            onclick="game.awardDD(true)">Correct  +$${val}</button>
+          <button class="award-btn" style="background:var(--red)"
+            onclick="game.awardDD(false)">Wrong  -$${val}</button>
+        </div>`;
+    } else {
+      const btns=this.teams.map((t,i)=>
+        `<button class="award-btn" style="background:${t.color}" onclick="game.award(${i})">
+           <span class="dot" style="background:#ffffff55"></span>${esc(t.name)}  +$${val}</button>`).join('');
+      row.innerHTML=`<div class="award-label">Who answered correctly?</div>
+        <div class="award-teams">${btns}
+          <button class="award-none" onclick="game.award(-1)">No one</button>
+        </div>
+        <div class="award-label" style="margin-top:16px;font-size:.72rem">Tip: click a team card afterward to set whose turn is next</div>`;
+    }
+    box.appendChild(row);
+  },
+
+  award(teamIdx){
+    const {clue,ci,qi}=this.current;
+    if(teamIdx>=0){
+      this.teams[teamIdx].score+=clue.value;
+      this.turn=teamIdx; // winner picks next
+    } else {
+      this.turn=(this.turn+1)%this.teams.length;
+    }
+    this.closeAndAdvance(ci,qi);
+  },
+
+  awardDD(correct){
+    const {wager,ddTeam,ci,qi}=this.current;
+    this.teams[ddTeam].score += correct ? wager : -wager;
+    this.turn=ddTeam;
+    this.closeAndAdvance(ci,qi);
+  },
+
+  closeAndAdvance(ci,qi){
+    this.cells[ci+'-'+qi]=true;
+    this.current=null;
+    document.getElementById('overlay').classList.add('hidden');
+    this.renderScoreboard();
+    this.renderBoard();
+    if(this.allDone()) this.showWinner();
+  },
+
+  allDone(){
+    let total=0;
+    this.set.categories.forEach(c=>total+=c.clues.length);
+    return Object.keys(this.cells).length>=total;
+  },
+
+  showWinner(){
+    document.getElementById('gameScreen').classList.add('hidden');
+    const sorted=this.teams.map(t=>({...t})).sort((a,b)=>b.score-a.score);
+    const top=sorted[0];
+    const tie=sorted.filter(t=>t.score===top.score);
+    const box=document.getElementById('winnerBox');
+    const rows=sorted.map((t,i)=>`<div class="final-row" style="border-left:4px solid ${t.color}">
+      <span>${i+1}. ${esc(t.name)}</span>
+      <span class="fs" style="color:${t.score<0?'var(--red)':'var(--text)'}">${t.score<0?'-':''}$${Math.abs(t.score)}</span></div>`).join('');
+    box.innerHTML=`<div class="crown">${tie.length>1?'It is a tie':'Winner'}</div>
+      <div class="wname">${tie.length>1?tie.map(t=>esc(t.name)).join(' & '):esc(top.name)}</div>
+      <div class="wscore">${top.score<0?'-':''}$${Math.abs(top.score)}</div>
+      <div class="final-list">${rows}</div>
+      <div style="margin-top:26px"><button class="btn-primary btn" onclick="game.confirmRestart()">Play again</button></div>`;
+    document.getElementById('winnerScreen').classList.remove('hidden');
+  },
+
+  confirmRestart(){
+    if(Object.keys(this.cells||{}).length>0 && !this.allDone()){
+      if(!confirm('Start a new game? Current scores will be lost.')) return;
+    }
+    this.cells={};
+    document.getElementById('gameScreen').classList.add('hidden');
+    document.getElementById('winnerScreen').classList.add('hidden');
+    document.getElementById('btnRestart').classList.add('hidden');
+    document.getElementById('overlay').classList.add('hidden');
+    document.getElementById('setupScreen').classList.remove('hidden');
+    this.previewSetName();
+  },
+
+  onKey(e){
+    if(e.key==='Escape' && this.current){ this.current=null; document.getElementById('overlay').classList.add('hidden'); this.renderBoard(); return; }
+    if(e.code==='Space' && this.current && !this.current.revealed && this.current.wager!=null!==true){
+      // only reveal if the plain clue (not the DD wager prompt) is showing
+      if(document.getElementById('revealBtn')){ e.preventDefault(); this.reveal(); }
+    }
+  }
+};
+
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+
+game.init();
+</script>
+</body>
+</html>

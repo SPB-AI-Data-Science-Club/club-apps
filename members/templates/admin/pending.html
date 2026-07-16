@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Pending Approvals{% endblock %}
+
+{% block content %}
+<div class="main-header">
+  <h1 class="main-title">Pending Approvals</h1>
+  {% if pending %}
+  <span style="font-size:.78rem;font-family:'JetBrains Mono',monospace;color:var(--burgundy-xl);">
+    {{ pending|length }} waiting
+  </span>
+  {% endif %}
+</div>
+
+<div class="main-content">
+
+  {% if pending %}
+    {% for user in pending %}
+    <div class="pending-card">
+      <div class="pending-info">
+        <div class="pending-name">{{ user['name'] }}</div>
+        <div class="pending-details">
+          {{ user['email'] }} &middot; Class of {{ user['grade'] }}
+        </div>
+        <span class="pending-role-req">Requested: {{ user['role'] }}</span>
+      </div>
+
+      <div class="pending-actions">
+        <form method="POST" action="/admin/approve/{{ user['id'] }}" style="display:flex;gap:.4rem;align-items:center;">
+          <select name="role">
+            <option value="student" {% if user['role']=='student' %}selected{% endif %}>Student</option>
+            <option value="teacher" {% if user['role']=='teacher' %}selected{% endif %}>Teacher</option>
+            <option value="admin">Admin</option>
+          </select>
+          <button type="submit" class="btn btn-primary btn-sm">Approve</button>
+        </form>
+        <form method="POST" action="/admin/reject/{{ user['id'] }}"
+              onsubmit="return confirm('Reject {{ user['name'] }}?')">
+          <button type="submit" class="btn btn-danger btn-sm">Reject</button>
+        </form>
+      </div>
+    </div>
+    {% endfor %}
+  {% else %}
+  <div class="empty">
+    <div class="empty-icon">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+      </svg>
+    </div>
+    No pending requests.
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

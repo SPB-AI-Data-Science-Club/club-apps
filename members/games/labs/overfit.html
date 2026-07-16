@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Overfit Lab - SPB Data Science</title>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
+<style>
+:root{--bg:#0c1322;--surface:#141f36;--s2:#18233c;--border:#22304d;--bl:#2c3b5e;--acc:#3f74d4;
+  --accl:#6494e8;--gold:#f2c14e;--green:#4ade80;--red:#f87171;--text:#e9eef8;--dim:#9fb0cb;--mut:#6e7f9d}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Public Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:20px}
+.wrap{max-width:860px;margin:0 auto}
+h1{font-size:1.3rem;font-weight:800;margin-bottom:.3rem}
+.sub{color:var(--dim);font-size:.9rem;line-height:1.5;margin-bottom:1.1rem;max-width:62ch}
+canvas{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:12px;display:block}
+.row{display:flex;gap:.8rem;flex-wrap:wrap;align-items:center;margin:1rem 0}
+.row label{font-size:.8rem;font-weight:700;color:var(--dim)}
+input[type=range]{flex:1;min-width:160px;accent-color:var(--acc)}
+.deg{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:1.3rem;color:var(--gold);width:2.2rem;text-align:center}
+button{font-family:inherit;cursor:pointer;border:none;border-radius:8px;padding:.55rem 1rem;font-weight:700;font-size:.9rem}
+.bp{background:var(--acc);color:#fff}.bg{background:var(--gold);color:#1a1305}
+.bs{background:var(--s2);color:var(--text);border:1px solid var(--bl)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.6rem;margin-top:.6rem}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:.7rem;text-align:center}
+.stat .v{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:1.25rem}
+.stat .k{font-size:.68rem;text-transform:uppercase;letter-spacing:.05em;color:var(--mut);margin-top:.15rem}
+.stat.test .v{color:var(--gold)}
+#banner{margin-top:.9rem;padding:.8rem 1rem;border-radius:10px;font-weight:700;display:none;line-height:1.4}
+.win{background:rgba(74,222,128,.12);border:1px solid rgba(74,222,128,.4);color:var(--green)}
+.lose{background:rgba(248,113,113,.12);border:1px solid rgba(248,113,113,.4);color:var(--red)}
+.note{color:var(--mut);font-size:.78rem;margin-top:1rem;line-height:1.5}
+.legend{display:flex;gap:1.2rem;color:var(--dim);font-size:.78rem;margin-top:.5rem;flex-wrap:wrap}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>The Overfit Trap</h1>
+  <p class="sub">Pick a polynomial degree that fits the blue training points as well as you can. Then lock it in
+    and meet the hidden test points. A wiggly degree twelve curve can hit every training point and still faceplant
+    on data it has never seen. Lowest test error wins, egos not included.</p>
+
+  <canvas id="cv" width="820" height="400"></canvas>
+  <div class="legend">
+    <span><span class="dot" style="background:#6494e8"></span>Training points</span>
+    <span><span class="dot" style="background:#f2c14e"></span>Hidden test points</span>
+    <span><span class="dot" style="background:#4ade80"></span>Your model</span>
+  </div>
+
+  <div class="row">
+    <label>Degree</label>
+    <input type="range" id="deg" min="1" max="12" value="1" />
+    <span class="deg" id="degShow">1</span>
+    <button class="bg" id="revealBtn">Lock in and reveal test</button>
+    <button class="bs" id="newBtn">New data</button>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="v" id="trainE">-</div><div class="k">Train error (MSE)</div></div>
+    <div class="stat test"><div class="v" id="testE">???</div><div class="k">Test error (MSE)</div></div>
+  </div>
+  <div id="banner"></div>
+  <p class="note">The truth behind the data is a gentle cubic plus noise. Degrees near 3 usually generalize best.
+    Anything above 8 is memorizing the noise, which feels great right up until the reveal.</p>
+</div>
+
+<script>
+let seed = 7;
+function rnd(){ seed = (seed*1103515245 + 12345) % 2147483648; return seed/2147483648; }
+const truth = x => 1.4*x**3 - 0.9*x + 0.3;
+let train = [], test = [], revealed = false;
+
+function makeData(){
+  train = []; test = []; revealed = false;
+  for(let i=0;i<12;i++){ const x = -1 + 2*i/11 + (rnd()-.5)*.08; train.push([x, truth(x) + (rnd()-.5)*.7]); }
+  for(let i=0;i<8;i++){ const x = -0.95 + 1.9*i/7 + (rnd()-.5)*.1; test.push([x, truth(x) + (rnd()-.5)*.7]); }
+}
+
+// Least squares polynomial fit via normal equations and Gaussian elimination.
+function polyfit(pts, d){
+  const n = d+1, A = Array.from({length:n},()=>Array(n+1).fill(0));
+  for(const [x,y] of pts){
+    const xp = Array.from({length:2*d+1},(_,k)=>x**k);
+    for(let i=0;i<n;i++){ for(let j=0;j<n;j++) A[i][j] += xp[i+j]; A[i][n] += y * x**i; }
+  }
+  for(let c=0;c<n;c++){
+    let piv = c;
+    for(let r=c+1;r<n;r++) if(Math.abs(A[r][c]) > Math.abs(A[piv][c])) piv = r;
+    [A[c],A[piv]] = [A[piv],A[c]];
+    if(Math.abs(A[c][c]) < 1e-12) continue;
+    for(let r=0;r<n;r++){ if(r===c) continue;
+      const k = A[r][c]/A[c][c];
+      for(let j=c;j<=n;j++) A[r][j] -= k*A[c][j];
+    }
+  }
+  // After full elimination the matrix is diagonal, so each coefficient is just RHS over pivot.
+  return A.map((row,i)=> Math.abs(A[i][i])<1e-12 ? 0 : A[i][n]/A[i][i]);
+}
+const evalPoly = (c,x) => c.reduce((s,ci,i)=>s + ci*x**i, 0);
+const mse = (c,pts) => pts.reduce((s,[x,y])=>s + (evalPoly(c,x)-y)**2, 0) / pts.length;
+
+const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+const XMIN=-1.15, XMAX=1.15, YMIN=-2.6, YMAX=2.6;
+const px = x => (x-XMIN)/(XMAX-XMIN)*cv.width;
+const py = y => cv.height - (y-YMIN)/(YMAX-YMIN)*cv.height;
+
+function draw(coef){
+  ctx.clearRect(0,0,cv.width,cv.height);
+  ctx.strokeStyle='#22304d'; ctx.beginPath(); ctx.moveTo(0,py(0)); ctx.lineTo(cv.width,py(0)); ctx.stroke();
+  if(coef){
+    ctx.strokeStyle='#4ade80'; ctx.lineWidth=2.5; ctx.beginPath();
+    for(let i=0;i<=300;i++){ const x = XMIN+(XMAX-XMIN)*i/300; const y = Math.max(YMIN,Math.min(YMAX,evalPoly(coef,x)));
+      i?ctx.lineTo(px(x),py(y)):ctx.moveTo(px(x),py(y)); }
+    ctx.stroke();
+  }
+  for(const [x,y] of train){ ctx.fillStyle='#6494e8'; ctx.beginPath(); ctx.arc(px(x),py(y),6,0,7); ctx.fill(); }
+  if(revealed) for(const [x,y] of test){
+    ctx.fillStyle='#f2c14e'; ctx.beginPath(); ctx.arc(px(x),py(y),6,0,7); ctx.fill();
+    ctx.strokeStyle='#1a1305'; ctx.lineWidth=1.5; ctx.stroke();
+  }
+}
+
+let coef = null;
+function refit(){
+  const d = +document.getElementById('deg').value;
+  document.getElementById('degShow').textContent = d;
+  coef = polyfit(train, d);
+  document.getElementById('trainE').textContent = mse(coef, train).toFixed(3);
+  if(revealed) showTest();
+  draw(coef);
+}
+function showTest(){
+  const e = mse(coef, test), tr = mse(coef, train);
+  document.getElementById('testE').textContent = e.toFixed(3);
+  const b = document.getElementById('banner');
+  b.style.display = 'block';
+  if(e < 0.25){ b.className='win'; b.textContent = 'Test MSE ' + e.toFixed(3) + '. That curve actually learned the pattern. Well played.'; }
+  else if(e > 4*Math.max(tr, .01)){ b.className='lose'; b.textContent = 'Test MSE ' + e.toFixed(3) + ' versus train ' + tr.toFixed(3) + '. Classic overfit. The curve memorized the noise and the test points called its bluff.'; }
+  else { b.className='lose'; b.textContent = 'Test MSE ' + e.toFixed(3) + '. Not a disaster, but there is a better degree hiding in the slider.'; }
+}
+document.getElementById('deg').oninput = refit;
+document.getElementById('revealBtn').onclick = () => { revealed = true; showTest(); draw(coef); };
+document.getElementById('newBtn').onclick = () => {
+  makeData(); revealed = false;
+  document.getElementById('testE').textContent='???';
+  document.getElementById('banner').style.display='none';
+  refit();
+};
+makeData(); refit();
+</script>
+</body>
+</html>

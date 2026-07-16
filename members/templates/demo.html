@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Live Demos - SPB AI &amp; Data Science Club</title>
+  <link rel="icon" type="image/png" href="/static/logo.png" />
+  <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{--bg:#0c1322;--surface:#141f36;--border:#22304d;--text:#e9eef8;--dim:#b4c1d8;--muted:#6e7f9d;--accent:#6494e8;--accent2:#3f74d4;--pink:#6494e8}
+    html{scroll-behavior:smooth}
+    body{font-family:'Public Sans',sans-serif;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased}
+
+    .deck{height:100vh;overflow-y:scroll;scroll-snap-type:y mandatory;scrollbar-width:none}
+    .deck::-webkit-scrollbar{display:none}
+
+    .slide{height:100vh;scroll-snap-align:start;scroll-snap-stop:always;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;padding:4.5rem 4rem 3rem;overflow:hidden}
+
+    /* Top chrome */
+    .chrome{position:fixed;top:0;left:0;right:0;display:flex;align-items:center;justify-content:space-between;padding:1rem 1.75rem;z-index:50;background:linear-gradient(180deg,rgba(9,9,9,.92),rgba(9,9,9,0));pointer-events:none}
+    .chrome>*{pointer-events:auto}
+    .chrome-logo{display:flex;align-items:center;gap:.8rem}
+    .chrome-logo img{width:96px;height:96px;border-radius:16px;object-fit:contain;display:block}
+    .chrome-name{font-size:1.15rem;font-weight:800;letter-spacing:-.02em}
+    .chrome-sub{font-size:.66rem;color:var(--muted);letter-spacing:.12em;text-transform:uppercase}
+    .gpu-pill{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;white-space:nowrap;gap:.55rem;padding:.5rem 1.1rem;border-radius:999px;border:1px solid #2c3b5e;background:#141f36ee;font-size:.92rem;font-weight:700}
+    .gpu-pill .gd{width:9px;height:9px;border-radius:50%;background:#3d4d6e}
+    .gpu-pill .gd.ready{background:#4ade80;box-shadow:0 0 5px #4ade8077;animation:glow 2s ease-in-out infinite}
+    .gpu-pill .gd.busy{background:#fbbf24;animation:glow 1s ease-in-out infinite}
+    .gpu-pill .gt{color:#5d6f8f}
+    .gpu-pill .gt.ready{color:#4ade80}
+    .gpu-pill .gt.busy{color:#fbbf24}
+    @keyframes glow{0%,100%{opacity:1}50%{opacity:.35}}
+    .chrome-right{display:flex;align-items:center;gap:.7rem;min-width:0}
+    .home-link{display:inline-flex;align-items:center;padding:.5rem 1.1rem;border-radius:999px;background:var(--accent2);color:#fff;font-size:.92rem;font-weight:700;text-decoration:none;white-space:nowrap;transition:background .2s}
+    .home-link:hover{background:var(--accent)}
+
+    /* Dot rail */
+    .dots{position:fixed;right:1.4rem;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:.65rem;z-index:50}
+    .dot{width:9px;height:9px;border-radius:50%;background:#2c3b5e;cursor:pointer;transition:all .25s;border:none;padding:0}
+    .dot:hover{background:#5d6f8f}
+    .dot.active{background:var(--pink);transform:scale(1.35)}
+
+    /* Hero slide */
+    .hero-slide{text-align:center}
+    .hero-bg{position:absolute;inset:0;background:radial-gradient(ellipse 70% 50% at 50% 45%,rgba(63,116,212,.22),transparent 70%);pointer-events:none}
+    .hero-logo{width:170px;height:170px;border-radius:36px;object-fit:contain;margin-bottom:2.25rem;filter:drop-shadow(0 20px 60px rgba(100,148,232,.35))}
+    .hero-title{font-size:clamp(2.4rem,6vw,4.5rem);font-weight:900;letter-spacing:-.045em;line-height:1.04;margin-bottom:1.1rem}
+    .hero-title .accent{background:linear-gradient(110deg,#6494e8,#6494e8 60%,#7fb0ff);-webkit-background-clip:text;background-clip:text;color:transparent}
+    .hero-sub{font-size:clamp(1rem,1.8vw,1.3rem);color:var(--dim);max-width:620px;margin:0 auto 2.5rem;line-height:1.7}
+    .hero-cta{font-size:.85rem;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:.7rem}
+    .hero-cta svg{animation:bob 2s ease-in-out infinite}
+    @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(9px)}}
+
+    /* Project slides */
+    .proj-inner{width:100%;max-width:1180px;display:grid;grid-template-columns:380px 1fr;gap:3.5rem;align-items:center;opacity:0;transform:translateY(36px);transition:opacity .7s ease,transform .7s ease}
+    .slide.visible .proj-inner{opacity:1;transform:translateY(0)}
+
+    .proj-kind{font-size:.7rem;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:var(--pink);margin-bottom:.9rem}
+    .proj-title{font-size:clamp(1.9rem,3.4vw,2.9rem);font-weight:900;letter-spacing:-.035em;line-height:1.08;margin-bottom:1.1rem}
+    .proj-desc{font-size:1.02rem;color:var(--dim);line-height:1.75;margin-bottom:1.75rem}
+    .proj-actions{display:flex;gap:.7rem;flex-wrap:wrap}
+    .proj-open{display:inline-flex;align-items:center;gap:.5rem;padding:.85rem 1.7rem;background:var(--accent2);color:#fff;border-radius:999px;font-size:.95rem;font-weight:700;text-decoration:none;transition:all .2s;border:none;cursor:pointer}
+    .proj-open:hover{background:var(--accent);transform:translateY(-2px)}
+    .proj-num{font-family:'JetBrains Mono',monospace;font-size:.75rem;color:#38486e;margin-top:1.6rem}
+
+    .preview-frame{position:relative;border-radius:18px;overflow:hidden;border:1px solid #22304d;background:#0a101c;box-shadow:0 30px 80px rgba(0,0,0,.5);aspect-ratio:16/10}
+    .preview-frame iframe{width:143%;height:143%;transform:scale(.7);transform-origin:0 0;border:0;display:block;background:#0a101c}
+    .preview-veil{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.8rem;background:rgba(9,9,9,.25);cursor:pointer;transition:background .25s}
+    .preview-veil:hover{background:rgba(9,9,9,.05)}
+    .preview-veil span{font-size:.8rem;font-weight:700;color:#fff;background:rgba(9,9,9,.75);border:1px solid #38486e;padding:.5rem 1.1rem;border-radius:999px;backdrop-filter:blur(8px)}
+    .preview-veil.off{display:none}
+
+    @media(max-width:920px){
+      .slide{padding:5rem 1.4rem 3rem}
+      .proj-inner{grid-template-columns:1fr;gap:1.6rem;max-height:100%;overflow:hidden}
+      .proj-title{font-size:1.7rem}
+      .proj-desc{font-size:.92rem;margin-bottom:1.1rem}
+      .preview-frame{aspect-ratio:16/11}
+      .dots{right:.55rem;gap:.5rem}
+      .chrome-name{font-size:.85rem}
+      .chrome-sub{display:none}
+      .chrome-logo img{width:48px;height:48px}
+      .chrome{padding:.75rem .8rem;gap:.5rem}
+      .chrome-logo{gap:.5rem;min-width:0}
+      .chrome-logo>div{min-width:0;overflow:hidden}
+      .chrome-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+      .chrome-right{gap:.45rem;flex-shrink:0}
+      .gpu-pill{min-width:0;font-size:.74rem;white-space:nowrap;flex-shrink:0}
+      /* Tighten the injected fancy pill (bars + popup) for the narrow chrome.
+         gpu-status.js sets pill padding and bar width with !important, so these
+         scoped overrides also use !important to win. */
+      .chrome .gpu-pill{padding:.3rem .55rem!important;gap:.4rem!important}
+      .chrome .gpu-bar-track{width:30px!important}
+      .home-link{padding:.4rem .8rem;font-size:.74rem;white-space:nowrap}
+      .hero-logo{width:110px;height:110px;border-radius:24px}
+    }
+    /* On phones the chrome row is tight (logo + status + home), so drop the
+       wordmark to the logo only, like the main site, instead of truncating. */
+    @media(max-width:600px){
+      .chrome-logo>div{display:none}
+    }
+    @media(max-width:400px){
+      .chrome .gpu-bar-track{width:22px!important}
+      .chrome .gpu-bar-pct{display:none!important}
+    }
+  </style>
+</head>
+<body>
+
+  <div class="chrome">
+    <div class="chrome-logo">
+      <a href="#" onclick="document.querySelector('.slide').scrollIntoView({behavior:'smooth'});return false" title="Back to start" style="display:block;flex-shrink:0">
+        <img src="/static/logo.png" alt="SPB AI and Data Science Club" />
+      </a>
+      <div>
+        <div class="chrome-name">SPB AI &amp; Data Science Club</div>
+        <div class="chrome-sub">Live Demos</div>
+      </div>
+    </div>
+    <div class="chrome-right">
+      <div class="gpu-pill"><div class="gd" id="gpuDot"></div><span class="gt" id="gpuTxt">GPUs</span></div>
+      <a class="home-link" href="https://spbdatascience.org">Return to Home</a>
+    </div>
+  </div>
+
+  <nav class="dots" id="dots"></nav>
+
+  <div class="deck" id="deck">
+
+    <section class="slide hero-slide" data-title="Welcome">
+      <div class="hero-bg"></div>
+      <img class="hero-logo" src="/static/logo.png" alt="Club logo" />
+      <h1 class="hero-title">Club Projects<br/><span class="accent">and Demos</span></h1>
+      <p class="hero-sub">Nine applications built and maintained by club members, running on the club's own servers. Scroll to browse, and use any demo directly from this page.</p>
+      <div class="hero-cta">
+        <span>Scroll or press the down arrow</span>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6e7f9d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+    </section>
+
+    {% set projects = [
+      ('Generative AI', 'Photo Editor',
+       'A photorealistic diffusion model generates a high-quality image from a written prompt, optionally guided by a reference photo the visitor uploads.',
+       'https://photo.spbdatascience.org'),
+      ('Computer Vision', 'Digit Recognizer',
+       'A convolutional neural network trained on the MNIST dataset classifies handwritten digits as they are drawn, displaying the probability assigned to each class.',
+       'https://digits.spbdatascience.org'),
+      ('Game AI', 'Chess Bot',
+       'Play the Stockfish engine at adjustable strength from 100 to 3600 ELO, with a live evaluation bar, captured piece display, and move history.',
+       'https://chess.spbdatascience.org'),
+      ('Algorithms', 'Pathfinding Visualizer',
+       'Five graph search algorithms animated on an editable grid, with statistics on nodes visited, path length, and cost for each run.',
+       'https://pathfinding.spbdatascience.org'),
+      ('NLP + Finance', 'Market Sentiment Analyzer',
+       'Candlestick charts and company statistics for any ticker, with recent headlines classified as bullish, bearish, or neutral by a transformer model.',
+       'https://sentiment.spbdatascience.org'),
+      ('Computer Vision', 'Image Classifier',
+       'Three ImageNet-pretrained convolutional networks classify uploaded images and report a confidence score for each prediction.',
+       'https://classifier.spbdatascience.org'),
+      ('Generative AI', 'AI Style Transfer',
+       'An image-to-image diffusion model restyles photos according to a written prompt, with adjustable strength and a set of classic filters.',
+       'https://style.spbdatascience.org'),
+      ('Deep Learning', 'Neural Net Visualizer',
+       'Configure a network architecture, dataset, and training settings, then observe the decision boundary and training metrics update live during training.',
+       'https://neural.spbdatascience.org'),
+      ('Language Models', 'LLM Playground',
+       'A character-level n-gram language model built from classic texts or any pasted sample, with adjustable context length and sampling temperature.',
+       'https://textgen.spbdatascience.org')
+    ] %}
+
+    {% for kind, name, desc, url in projects %}
+    <section class="slide" data-title="{{ name }}">
+      <div class="proj-inner">
+        <div>
+          <div class="proj-kind">{{ kind }}</div>
+          <h2 class="proj-title">{{ name }}</h2>
+          <p class="proj-desc">{{ desc }}</p>
+          <div class="proj-actions">
+            <a class="proj-open" href="{{ url }}" target="_blank" rel="noopener">Launch Full Screen
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+            </a>
+          </div>
+          <div class="proj-num">{{ '%02d' % loop.index }} / 09</div>
+        </div>
+        <div class="preview-frame">
+          <iframe data-src="{{ url }}" title="{{ name }} live preview" loading="lazy" tabindex="-1"></iframe>
+          <div class="preview-veil" onclick="activatePreview(this)">
+            <span>Click to interact with the live demo</span>
+          </div>
+        </div>
+      </div>
+    </section>
+    {% endfor %}
+
+  </div>
+
+<script>
+'use strict';
+
+const deck   = document.getElementById('deck');
+const slides = Array.from(document.querySelectorAll('.slide'));
+const dotsEl = document.getElementById('dots');
+
+// Dot rail
+slides.forEach((s, i) => {
+  const d = document.createElement('button');
+  d.className = 'dot' + (i === 0 ? ' active' : '');
+  d.title = s.dataset.title;
+  d.addEventListener('click', () => s.scrollIntoView({behavior: 'smooth'}));
+  dotsEl.appendChild(d);
+});
+const dots = Array.from(dotsEl.children);
+
+// Visibility: animate slides in, lazy-load iframes one slide ahead
+const io = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    const idx = slides.indexOf(e.target);
+    if (e.isIntersecting) {
+      e.target.classList.add('visible');
+      dots.forEach((d, i) => d.classList.toggle('active', i === idx));
+      [idx, idx + 1].forEach(j => {
+        const f = slides[j] && slides[j].querySelector('iframe[data-src]');
+        if (f) { f.src = f.dataset.src; f.removeAttribute('data-src'); }
+      });
+    }
+  });
+}, {root: deck, threshold: 0.55});
+slides.forEach(s => io.observe(s));
+
+// The veil keeps scrolling smooth; one click hands control to the iframe
+function activatePreview(veil) {
+  veil.classList.add('off');
+}
+// Re-veil previews when their slide scrolls away, so the deck stays scrollable
+const reVeil = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (!e.isIntersecting) {
+      const v = e.target.querySelector('.preview-veil');
+      if (v) v.classList.remove('off');
+    }
+  });
+}, {root: deck, threshold: 0.1});
+slides.forEach(s => reVeil.observe(s));
+
+// Keyboard navigation for kiosk use
+let current = 0;
+deck.addEventListener('scroll', () => {
+  current = Math.round(deck.scrollTop / window.innerHeight);
+});
+window.addEventListener('keydown', e => {
+  if (e.key === 'ArrowDown' || e.key === 'PageDown' || e.key === ' ') {
+    e.preventDefault();
+    slides[Math.min(current + 1, slides.length - 1)].scrollIntoView({behavior: 'smooth'});
+  } else if (e.key === 'ArrowUp' || e.key === 'PageUp') {
+    e.preventDefault();
+    slides[Math.max(current - 1, 0)].scrollIntoView({behavior: 'smooth'});
+  } else if (e.key === 'Escape' || e.key === 'Home') {
+    slides[0].scrollIntoView({behavior: 'smooth'});
+  }
+});
+
+</script>
+<!-- Fancy GPU pill: per-machine usage bars + tap-to-open popup, shared with the
+     main site. It drives the #gpuTxt label and #gpuDot, and injects the bars. -->
+<script src="https://spbdatascience.org/js/gpu-status.js?v=22" defer></script>
+</body>
+</html>

@@ -1,0 +1,143 @@
+{% extends 'base.html' %}
+{% block title %}Host {{ sess['title'] }}{% endblock %}
+{% block head %}<link rel="stylesheet" href="/static/live.css?v=3" />{% endblock %}
+{% block content %}
+<div class="main-content console">
+  <div class="main-header" style="justify-content:space-between;display:flex;align-items:center">
+    <h1 class="main-title" style="font-size:1.2rem">{{ sess['title'] }}</h1>
+    <a href="/games" class="btn">Exit</a>
+  </div>
+
+  <div id="stage"></div>
+</div>
+
+<script>
+const CODE = "{{ sess['code'] }}";
+const GTYPE = "{{ sess['game_type'] }}";
+const JOIN_URL = location.origin + "/live";
+const OPT_CLASS = ["opt-a","opt-b","opt-c","opt-d","opt-a","opt-b"];
+const OPT_LETTER = ["A","B","C","D","E","F"];
+let lastVer = -1, lastPhase = "", lastCount = -1;
+
+async function act(action){
+  await fetch(`/host/${CODE}/action`, {
+    method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({action})
+  });
+  poll(true);
+}
+
+function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+
+function lobby(d){
+  const who = d.players.map(p=>`<span class="who">${esc(p)}</span>`).join("") ||
+    `<span style="color:var(--text-muted)">Waiting for players to join...</span>`;
+  return `
+    <div class="code-hero">
+      <div class="lbl">Join at ${esc(JOIN_URL)}</div>
+      <div class="code">${esc(CODE)}</div>
+      <div class="join-url">${d.player_count} in the lobby</div>
+      <div class="roster">${who}</div>
+    </div>
+    <div class="console-controls">
+      <button class="btn-launch btn-big" onclick="act('start')">Start game</button>
+    </div>`;
+}
+
+function tally(d){
+  const q = d.question || {};
+  const opts = q.options || [];
+  const t = d.tally || [];
+  const total = t.reduce((a,b)=>a+b,0) || 1;
+  const showCorrect = d.phase === "reveal";
+  return opts.map((o,i)=>{
+    const pct = Math.round((t[i]||0)/total*100);
+    const isC = showCorrect && i === d.correct;
+    return `<div class="tally-row ${isC?'correct':''}">
+      <span class="opt ${OPT_CLASS[i]}">${OPT_LETTER[i]}</span>
+      <span class="track"><span class="fill" style="width:${pct}%"></span>
+        <span class="txt">${esc(o)} ${isC?'&check;':''}</span></span>
+      <span class="cnt">${t[i]||0}</span>
+    </div>`;
+  }).join("");
+}
+
+function pollStats(p){
+  if(!p || !p.count) return `<div class="answer-count">No guesses yet</div>`;
+  return `<div class="poll-stats">
+    <div class="poll-stat crowd"><div class="v">${p.avg}</div><div class="k">Crowd average</div></div>
+    <div class="poll-stat"><div class="v">${p.median}</div><div class="k">Median</div></div>
+    <div class="poll-stat"><div class="v">${p.lo} - ${p.hi}</div><div class="k">Range</div></div>
+    ${p.truth!=null && (window.__reveal)?`<div class="poll-stat truth"><div class="v">${p.truth}</div><div class="k">True answer</div></div>`:''}
+  </div>`;
+}
+
+function board(d){
+  const lb = d.leaderboard || [];
+  if(!lb.length) return "";
+  return `<div class="section-label" style="margin-top:1.2rem">Leaderboard</div>
+    <div class="board-list">` + lb.map((r,i)=>`
+    <div class="board-row ${i===0?'top1':''}">
+      <span class="rank">${i+1}</span>
+      <span class="nm">${esc(r.name)} ${r.team?`<span class="team">${esc(r.team)}</span>`:''}</span>
+      <span class="sc">${r.score}</span>
+    </div>`).join("") + `</div>`;
+}
+
+function question(d){
+  window.__reveal = d.phase === "reveal";
+  const q = d.question || {};
+  const body = GTYPE === "poll"
+    ? pollStats(d.poll)
+    : `<div class="tally">${tally(d)}</div>`;
+  let controls = "";
+  if(d.phase === "question"){
+    controls = `
+      <button class="btn" onclick="act('lock')">${d.locked?'Locked':'Lock answers'}</button>
+      <button class="btn-launch" onclick="act('reveal')">Reveal answer</button>`;
+  } else {
+    const last = d.q_index + 1 >= d.total;
+    controls = `<button class="btn-launch btn-big" onclick="act('next')">${last?'Show final scores':'Next question'}</button>`;
+  }
+  return `
+    <div class="host-q">
+      <div class="qmeta"><span>Question ${d.q_index+1} of ${d.total}</span>
+        <span>${d.answered} of ${d.player_count} answered</span></div>
+      <div class="qtext">${esc(q.q)}</div>
+      ${q.note?`<div class="mini-note" style="text-align:left">${esc(q.note)}</div>`:''}
+      ${body}
+    </div>
+    ${d.phase==="reveal"?board(d):''}
+    <div class="console-controls">${controls}</div>`;
+}
+
+function podium(d){
+  return `
+    <div class="code-hero"><div class="lbl">Final results</div>
+      <div class="code" style="font-size:2rem">${esc(d.title)}</div></div>
+    ${board(d)}
+    <div class="console-controls">
+      <a class="btn btn-primary" href="/games">Back to games</a>
+    </div>`;
+}
+
+async function poll(force){
+  let d;
+  try{ d = await (await fetch(`/api/host/${CODE}?t=`+Date.now())).json(); }
+  catch(e){ return; }
+  // Re-render on any state change or when player roster grows in the lobby.
+  const changed = force || d.ver !== lastVer || d.phase !== lastPhase ||
+                  d.answered !== lastCount || d.player_count !== window.__pc;
+  window.__pc = d.player_count; lastCount = d.answered;
+  if(!changed) return;
+  lastVer = d.ver; lastPhase = d.phase;
+  const stage = document.getElementById("stage");
+  if(d.status === "lobby") stage.innerHTML = lobby(d);
+  else if(d.phase === "podium") stage.innerHTML = podium(d);
+  else stage.innerHTML = question(d);
+}
+
+poll(true);
+setInterval(poll, 1000);
+</script>
+{% endblock %}

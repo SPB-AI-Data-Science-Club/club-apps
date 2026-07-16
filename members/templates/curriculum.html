@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+{% block title %}Curriculum{% endblock %}
+{% block head %}<link rel="stylesheet" href="/static/live.css?v=3" />{% endblock %}
+{% block content %}
+<div class="main-header">
+  <h1 class="main-title">Curriculum</h1>
+</div>
+
+<div class="main-content">
+  <div class="curr-hero">
+    <p>Twenty meetings that take you from your first line of regression all the way to how modern language
+      models think. Each day pairs a short set of ideas with a game or hands on activity, so you learn it by
+      doing it. Open any day to see the plan and the tools you will use.</p>
+  </div>
+
+  <div class="day-grid">
+    {% for d in days %}
+    <a class="day-card" href="/curriculum/day/{{ d['day'] }}">
+      <div class="day-badge"><span class="k">Day</span><span class="n">{{ d['day'] }}</span></div>
+      <div class="day-title">{{ d['title'] }}</div>
+      <div class="day-hook">{{ d['hook'] }}</div>
+      <div class="chip-row">
+        {% for t in d['topics'][:3] %}<span class="chip">{{ t }}</span>{% endfor %}
+        {% if d['topics'] | length > 3 %}<span class="chip">+{{ d['topics'] | length - 3 }}</span>{% endif %}
+      </div>
+      {% if d['game'] %}
+      <div class="day-foot"><span class="game-badge">Live game</span></div>
+      {% endif %}
+    </a>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

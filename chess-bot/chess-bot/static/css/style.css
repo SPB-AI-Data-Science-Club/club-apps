@@ -1,0 +1,498 @@
+/* ── Reset & Base ─────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --burgundy:   #660033;
+  --burgundy-l: #8b0044;
+  --burgundy-d: #3d001f;
+  --bg:         #0d0d0d;
+  --surface:    #161616;
+  --surface-2:  #1e1e1e;
+  --border:     #2a2a2a;
+  --text:       #e8e8e8;
+  --text-muted: #777;
+  --white-sq:   #f0d9b5;
+  --black-sq:   #b58863;
+  --hint:       rgba(102, 0, 51, 0.55);
+  --radius:     10px;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Header ─────────────────────────────────────────────────────────── */
+.site-header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 2rem;
+  height: 60px;
+  flex-shrink: 0;
+}
+
+.header-inner {
+  max-width: 1400px;
+  margin: 0 auto;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.logo { display: flex; align-items: center; gap: .75rem; }
+
+.logo-mark {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background: var(--burgundy);
+  color: #fff;
+  font-size: .85rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.logo-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.logo-sub {
+  font-size: .72rem;
+  color: var(--text-muted);
+  letter-spacing: .03em;
+}
+
+.github-link {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  color: var(--text-muted);
+  text-decoration: none;
+  font-size: .85rem;
+  transition: color .2s;
+}
+.github-link:hover { color: var(--text); }
+
+/* ── Main Layout ────────────────────────────────────────────────────── */
+.main {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 280px 1fr 220px;
+  gap: 1.5rem;
+  padding: 1.5rem 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* ── Panels ─────────────────────────────────────────────────────────── */
+.setup-panel,
+.history-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  height: fit-content;
+}
+
+.panel-title {
+  font-size: .8rem;
+  font-weight: 600;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--burgundy-l);
+  margin-bottom: 1.25rem;
+}
+
+.section-label {
+  font-size: .72rem;
+  font-weight: 500;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: .6rem;
+}
+
+/* ── ELO Buttons ────────────────────────────────────────────────────── */
+.elo-grid {
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+}
+
+.elo-btn {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto auto;
+  align-items: center;
+  gap: .1rem .6rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: .65rem .8rem;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color .2s, background .2s;
+  width: 100%;
+}
+
+.elo-btn:hover { border-color: var(--burgundy-d); background: #1f1014; }
+.elo-btn.active {
+  border-color: var(--burgundy);
+  background: #1a0010;
+}
+
+.elo-name {
+  font-size: .85rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.elo-rating {
+  font-size: .75rem;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--burgundy-l);
+  background: var(--burgundy-d);
+  padding: .1rem .4rem;
+  border-radius: 4px;
+}
+
+.elo-desc {
+  grid-column: 2 / 3;
+  font-size: .7rem;
+  color: var(--text-muted);
+  line-height: 1.3;
+}
+
+/* ── Color Toggle ───────────────────────────────────────────────────── */
+.color-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: .5rem;
+}
+
+.color-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .4rem;
+  padding: .6rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-size: .85rem;
+  cursor: pointer;
+  transition: all .2s;
+  font-family: inherit;
+}
+
+.color-btn:hover { border-color: var(--burgundy-d); color: var(--text); }
+.color-btn.active { border-color: var(--burgundy); background: #1a0010; color: var(--text); }
+
+.color-btn span { font-size: 1.1rem; }
+
+/* ── Start Button ───────────────────────────────────────────────────── */
+.start-btn {
+  display: block;
+  width: 100%;
+  margin-top: 1.25rem;
+  padding: .75rem;
+  background: var(--burgundy);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: .95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .2s;
+  font-family: inherit;
+}
+.start-btn:hover { background: var(--burgundy-l); }
+
+/* ── In-game Controls ───────────────────────────────────────────────── */
+.divider { border: none; border-top: 1px solid var(--border); margin: 1.25rem 0; }
+
+.status-box {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: .75rem 1rem;
+  margin-bottom: .75rem;
+}
+.status-label { font-size: .65rem; text-transform: uppercase; letter-spacing: .1em; color: var(--text-muted); }
+.status-text { font-size: .95rem; font-weight: 600; margin-top: .2rem; color: var(--text); }
+
+.elo-display {
+  font-size: .75rem;
+  color: var(--text-muted);
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.hint-btn, .new-game-btn {
+  display: block;
+  width: 100%;
+  padding: .6rem;
+  border-radius: 8px;
+  font-size: .85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all .2s;
+  font-family: inherit;
+  margin-bottom: .5rem;
+}
+
+.hint-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+}
+.hint-btn:hover { border-color: var(--burgundy-d); color: var(--text); }
+
+.new-game-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+}
+.new-game-btn:hover { border-color: var(--burgundy-d); color: var(--text); }
+
+/* ── Board ──────────────────────────────────────────────────────────── */
+.board-area {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: .5rem;
+}
+
+.board-wrapper {
+  width: min(560px, 100%);
+}
+
+#chessboard {
+  width: 100% !important;
+}
+
+/* Override chessboard.js square colors */
+#chessboard .white-1e1d7 { background-color: var(--white-sq) !important; }
+#chessboard .black-3c85d { background-color: var(--black-sq) !important; }
+
+/* Highlight squares */
+.highlight-move  { box-shadow: inset 0 0 0 4px rgba(255,255,100,0.7); }
+.hint-square     { box-shadow: inset 0 0 0 6px var(--hint) !important; }
+
+/* ── Move History ───────────────────────────────────────────────────── */
+.move-list {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: .8rem;
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.no-moves { color: var(--text-muted); font-style: italic; font-family: 'Inter', sans-serif; }
+
+.move-pair {
+  display: grid;
+  grid-template-columns: 1.5rem 1fr 1fr;
+  gap: .2rem .5rem;
+  padding: .3rem .2rem;
+  border-bottom: 1px solid #1c1c1c;
+  align-items: center;
+}
+
+.move-num { color: var(--text-muted); }
+.move-white, .move-black { padding: .15rem .3rem; border-radius: 4px; }
+.move-white { color: #e8e0d0; }
+.move-black { color: #c8b89a; }
+.move-white:hover, .move-black:hover { background: var(--surface-2); }
+
+/* ── Modal ──────────────────────────────────────────────────────────── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.75);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 2.5rem;
+  text-align: center;
+  max-width: 340px;
+  width: 90%;
+}
+
+.modal-icon { font-size: 3.5rem; margin-bottom: 1rem; }
+.modal-title { font-size: 1.5rem; font-weight: 700; margin-bottom: .5rem; }
+.modal-sub { color: var(--text-muted); font-size: .9rem; margin-bottom: 1.5rem; line-height: 1.5; }
+
+/* ── Utilities ──────────────────────────────────────────────────────── */
+.hidden { display: none !important; }
+
+/* ── Status indicators ──────────────────────────────────────────────── */
+@keyframes pulse { 0%,100% { opacity:1 } 50% { opacity:.4 } }
+.thinking     { color: var(--burgundy-l); font-style: italic; animation: pulse 1s ease-in-out infinite; }
+.status-error { color: #f87171; font-size: .85rem; }
+
+
+/* ── Player cards (chess.com style) ─────────────────────────────────── */
+.player-card {
+  display: flex;
+  align-items: center;
+  gap: .7rem;
+  padding: .5rem .7rem;
+  background: var(--surface, #141414);
+  border: 1px solid #222;
+  border-radius: 8px;
+  min-height: 48px;
+}
+#captureTop    { margin-bottom: .6rem; }
+#captureBottom { margin-top: .6rem; }
+
+.player-avatar {
+  width: 30px; height: 30px;
+  border-radius: 7px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: .8rem; font-weight: 800;
+  flex-shrink: 0;
+}
+.engine-avatar { background: #1d3a5f; color: #8db8e8; }
+.you-avatar    { background: #3d001f; color: #d678a8; }
+
+.player-info { flex: 1; display: flex; align-items: center; gap: .7rem; min-width: 0; }
+.player-name {
+  font-size: .82rem;
+  font-weight: 700;
+  color: #ccc;
+  white-space: nowrap;
+}
+.cap-pieces {
+  font-size: 1.2rem;
+  line-height: 1;
+  letter-spacing: .05em;
+  color: #d6d6d6;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cap-none { font-size: .7rem; color: #444; }
+.cap-score {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: .85rem;
+  font-weight: 600;
+  color: #4ade80;
+  flex-shrink: 0;
+}
+
+/* ── Eval bar ───────────────────────────────────────────────────────── */
+.board-row { display: flex; gap: .6rem; align-items: stretch; }
+.board-row #chessboard { flex: 1; min-width: 0; }
+.eval-bar {
+  width: 18px;
+  border-radius: 5px;
+  background: #2b2b2b;          /* black share */
+  position: relative;
+  overflow: hidden;
+  border: 1px solid #333;
+  flex-shrink: 0;
+}
+.eval-white {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 50%;
+  background: #e8e8e8;          /* white share rises from the bottom */
+  transition: height .5s cubic-bezier(.4,0,.2,1);
+}
+.eval-label {
+  position: absolute;
+  bottom: 4px; left: 0; right: 0;
+  text-align: center;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: .55rem;
+  font-weight: 700;
+  color: #555;
+  z-index: 1;
+}
+.eval-label.eval-black-lead { top: 4px; bottom: auto; color: #999; }
+
+/* ── ELO slider ─────────────────────────────────────────────────────── */
+.elo-slider-box {
+  background: var(--surface-2, #1a1a1a);
+  border: 1px solid #2a2a2a;
+  border-radius: 10px;
+  padding: 1rem 1.1rem;
+}
+.elo-slider-head {
+  display: flex;
+  align-items: baseline;
+  gap: .6rem;
+  margin-bottom: .6rem;
+}
+.elo-slider-value {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #c4006a;
+}
+.elo-slider-name {
+  font-size: .8rem;
+  font-weight: 700;
+  color: #ccc;
+}
+.elo-slider-box input[type=range] {
+  width: 100%;
+  accent-color: #660033;
+  cursor: pointer;
+}
+.elo-slider-limits {
+  display: flex;
+  justify-content: space-between;
+  font-size: .65rem;
+  font-family: 'JetBrains Mono', monospace;
+  color: #555;
+  margin-top: .15rem;
+}
+.elo-slider-desc {
+  font-size: .74rem;
+  color: #999;
+  line-height: 1.55;
+  margin-top: .55rem;
+  min-height: 2.2em;
+}
+
+/* ── Mobile: board first and big, no page scroll while playing ──────── */
+@media (max-width: 860px) {
+  body { overscroll-behavior: none; }
+  .main {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+    padding: .75rem .75rem 2rem;
+  }
+  .board-area { order: -1; }
+  .board-wrapper { max-width: 100%; }
+  .board-row { gap: .35rem; }
+  .eval-bar { width: 12px; }
+  /* The board owns its touches: dragging a piece never scrolls the page */
+  .board-row, #chessboard { touch-action: none; }
+  .player-card { min-height: 42px; padding: .4rem .6rem; }
+  .setup-panel { order: 1; }
+  .history-panel { order: 2; }
+  .move-list { max-height: 200px; overflow-y: auto; }
+  .site-header { padding: 0 1rem; }
+}

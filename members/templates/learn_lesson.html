@@ -1,0 +1,154 @@
+{% extends 'base.html' %}
+{% block title %}Day {{ d['day'] }} - {{ d['title'] }}{% endblock %}
+{% block head %}<link rel="stylesheet" href="/static/live.css?v=3" />{% endblock %}
+{% block content %}
+<div class="main-header">
+  <a href="/learn" style="color:var(--text-muted);text-decoration:none;font-size:.85rem;font-weight:600">&larr; All lessons</a>
+</div>
+
+<div class="main-content" style="max-width:760px">
+  <div class="day-kicker">Day {{ '%02d' % d['day'] }} &middot; Lesson</div>
+  <h1 class="day-h1">{{ d['title'] }}</h1>
+
+  {% for t in teach %}
+  <div class="section-label" style="margin-top:1.4rem">{{ t.h }}</div>
+  <p style="color:var(--text-dim);line-height:1.7;max-width:66ch">{{ t.p }}</p>
+  {% endfor %}
+
+  <div class="section-label" style="margin-top:2rem">Test yourself</div>
+  <div id="quiz"></div>
+
+  <div id="controls" style="margin-top:1.4rem">
+    <button class="btn-launch" id="submitBtn" type="button">Submit answers</button>
+    <div id="scoreBox" class="hidden" style="margin-top:1.2rem"></div>
+  </div>
+
+  <div class="day-nav">
+    {% if d['day'] > 1 %}<a href="/learn/{{ d['day'] - 1 }}">&larr; Day {{ d['day'] - 1 }}</a>{% endif %}
+    <span class="spacer"></span>
+    {% if d['day'] < total %}<a href="/learn/{{ d['day'] + 1 }}">Day {{ d['day'] + 1 }} &rarr;</a>{% endif %}
+  </div>
+</div>
+
+<style>
+.q-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.2rem 1.3rem;margin-bottom:.9rem}
+.q-num{font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--text-muted);font-weight:700}
+.q-text{font-weight:700;font-size:1.02rem;margin:.3rem 0 .9rem;line-height:1.4}
+.opt{display:flex;align-items:center;gap:.6rem;padding:.6rem .8rem;border:1px solid var(--border-l);border-radius:9px;
+  margin-bottom:.5rem;cursor:pointer;transition:.12s}
+.opt:hover{border-color:var(--burgundy)}
+.opt input{width:17px;height:17px;accent-color:var(--burgundy)}
+.opt.correct{border-color:var(--game-green);background:rgba(74,222,128,.1)}
+.opt.wrong{border-color:var(--game-red);background:rgba(224,82,77,.1)}
+.q-num-in,.q-text-in{width:100%;background:var(--bg);border:1px solid var(--border-l);color:var(--text);
+  border-radius:9px;padding:.7rem .8rem;font-family:inherit;font-size:.98rem}
+.q-num-in{max-width:220px;font-family:'JetBrains Mono',monospace}
+.q-text-in{min-height:80px;resize:vertical}
+.q-fb{margin-top:.7rem;padding:.7rem .9rem;border-radius:9px;font-size:.9rem;line-height:1.5;display:none}
+.q-fb.show{display:block}
+.q-fb.good{background:rgba(74,222,128,.1);border:1px solid rgba(74,222,128,.3)}
+.q-fb.bad{background:rgba(224,82,77,.1);border:1px solid rgba(224,82,77,.3)}
+.q-fb.model{background:var(--surface-2);border:1px solid var(--border-l)}
+.q-fb .verdict{font-weight:800;margin-right:.4rem}
+.q-fb.good .verdict{color:var(--game-green)}.q-fb.bad .verdict{color:var(--game-red)}
+.unit{color:var(--text-muted);font-size:.85rem;margin-left:.5rem}
+.score-hero{text-align:center;padding:1.4rem;border-radius:14px;font-weight:700}
+.score-hero .big{font-family:'JetBrains Mono',monospace;font-size:2.4rem;font-weight:800;color:var(--game-gold)}
+</style>
+
+<script>
+const QS = {{ questions | tojson }};
+const DAY = {{ d['day'] }};
+const LETTER = ['A','B','C','D','E','F'];
+
+function render(){
+  const box = document.getElementById('quiz');
+  box.innerHTML = QS.map((q,i)=>{
+    let body = '';
+    if(q.type === 'mcq' || q.type === 'multi'){
+      const input = q.type === 'mcq' ? 'radio' : 'checkbox';
+      body = q.options.map((o,j)=>`
+        <label class="opt" data-q="${i}" data-opt="${j}">
+          <input type="${input}" name="q${i}" value="${j}" />
+          <span><b>${LETTER[j]}.</b> ${o}</span>
+        </label>`).join('');
+      if(q.type === 'multi') body = `<div style="font-size:.78rem;color:var(--text-muted);margin-bottom:.5rem">Select all that apply</div>` + body;
+    } else if(q.type === 'number'){
+      body = `<input class="q-num-in" type="text" inputmode="decimal" data-q="${i}" placeholder="Your answer" />
+              ${q.unit ? `<span class="unit">${q.unit}</span>` : ''}`;
+    } else {
+      body = `<textarea class="q-text-in" data-q="${i}" placeholder="Write your answer, then submit to see a model answer"></textarea>`;
+    }
+    const tag = q.type === 'short' ? 'Written' : (q.type === 'multi' ? 'Select all' : (q.type === 'number' ? 'Number' : 'Multiple choice'));
+    return `<div class="q-card" id="qc${i}">
+      <div class="q-num">Question ${i+1} &middot; ${tag}</div>
+      <div class="q-text">${q.q}</div>
+      ${body}
+      <div class="q-fb" id="fb${i}"></div>
+    </div>`;
+  }).join('');
+}
+
+function collect(){
+  return QS.map((q,i)=>{
+    if(q.type === 'mcq'){
+      const el = document.querySelector(`input[name=q${i}]:checked`);
+      return el ? +el.value : null;
+    }
+    if(q.type === 'multi'){
+      return Array.from(document.querySelectorAll(`input[name=q${i}]:checked`)).map(e=>+e.value);
+    }
+    const el = document.querySelector(`[data-q="${i}"]`);
+    return el ? el.value : '';
+  });
+}
+
+async function submit(){
+  const answers = collect();
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true; btn.textContent = 'Checking...';
+  let data;
+  try{
+    data = await (await fetch(`/learn/${DAY}/submit`, {method:'POST',
+      headers:{'Content-Type':'application/json'}, body: JSON.stringify({answers})})).json();
+  }catch(e){ btn.disabled=false; btn.textContent='Submit answers'; return; }
+
+  data.results.forEach((r,i)=>{
+    const fb = document.getElementById('fb'+i);
+    document.querySelectorAll(`#qc${i} input`).forEach(inp=>inp.disabled=true);
+    document.querySelectorAll(`#qc${i} textarea`).forEach(t=>t.disabled=true);
+    if(r.type === 'mcq' || r.type === 'multi'){
+      const correct = Array.isArray(r.correct) ? r.correct : [r.correct];
+      document.querySelectorAll(`.opt[data-q="${i}"]`).forEach(opt=>{
+        const j = +opt.dataset.opt;
+        const checked = opt.querySelector('input').checked;
+        if(correct.includes(j)) opt.classList.add('correct');
+        else if(checked) opt.classList.add('wrong');
+      });
+      fb.className = 'q-fb show ' + (r.ok ? 'good' : 'bad');
+      fb.innerHTML = `<span class="verdict">${r.ok ? 'Correct' : 'Not quite'}</span>${r.explain || ''}`;
+    } else if(r.type === 'number'){
+      fb.className = 'q-fb show ' + (r.ok ? 'good' : 'bad');
+      fb.innerHTML = `<span class="verdict">${r.ok ? 'Correct' : 'Not quite'}</span>The answer is ${r.correct}. ${r.explain || ''}`;
+    } else {
+      fb.className = 'q-fb show model';
+      fb.innerHTML = `<b>Model answer:</b> ${r.sample}<br><span style="color:var(--text-muted)">${r.explain || ''}</span>`;
+    }
+  });
+
+  const sb = document.getElementById('scoreBox');
+  sb.classList.remove('hidden');
+  sb.innerHTML = `<div class="score-hero" style="background:var(--surface);border:1px solid var(--border)">
+    You scored <span class="big">${data.correct}/${data.auto}</span> on the graded questions.
+    ${data.best > data.correct ? `<div style="color:var(--text-muted);margin-top:.3rem">Your best is ${data.best}/${data.auto}</div>` : ''}
+    <div style="color:var(--text-dim);margin-top:.5rem;font-weight:500">Saved to your account. Written answers are for your own reflection.</div>
+  </div>`;
+  btn.textContent = 'Submit again to improve';
+  btn.disabled = false;
+  sb.scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+
+document.getElementById('submitBtn').addEventListener('click', submit);
+render();
+</script>
+{% endblock %}

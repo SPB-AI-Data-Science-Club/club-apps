@@ -1,0 +1,92 @@
+{% extends 'base.html' %}
+{% block title %}Live Games{% endblock %}
+{% block head %}<link rel="stylesheet" href="/static/live.css?v=3" />{% endblock %}
+{% block content %}
+<div class="main-header">
+  <h1 class="main-title">Live Games</h1>
+</div>
+
+<div class="main-content">
+
+  {% if live and current_user and current_user['role'] == 'admin' and current_user['id'] == live['host_id'] %}
+  <div class="live-banner">
+    <span class="live-dot"></span>
+    <div style="flex:1">
+      <div style="font-weight:600">Your game console is open</div>
+      <div style="color:var(--text-dim);font-size:.88rem">{{ live['title'] }} &middot; code {{ live['code'] }}</div>
+    </div>
+    <a class="btn" href="/host/{{ live['code'] }}">Open console</a>
+  </div>
+  {% endif %}
+
+  {% if current_user['role'] == 'admin' %}
+  <div class="section-label">Start a game</div>
+  <div class="launch-grid">
+
+    <div class="launch-card">
+      <h3>Quiz</h3>
+      <p>Kahoot style. Multiple choice with a timer, points for being fast and right.</p>
+      <form method="post" action="/live/new">
+        <input type="hidden" name="game_type" value="quiz" />
+        <select class="form-input" name="set_id" required>
+          {% for s in quiz_sets %}<option value="{{ s['id'] }}">{{ s['title'] }} ({{ s['count'] }})</option>{% endfor %}
+        </select>
+        <button class="btn-launch" type="submit" style="width:100%;justify-content:center">Start quiz</button>
+      </form>
+    </div>
+
+    <div class="launch-card">
+      <h3>Number guess</h3>
+      <p>Everyone submits a number, then the crowd average takes on the truth.</p>
+      <form method="post" action="/live/new">
+        <input type="hidden" name="game_type" value="poll" />
+        <select class="form-input" name="set_id" required>
+          {% for s in poll_sets %}<option value="{{ s['id'] }}">{{ s['title'] }} ({{ s['count'] }})</option>{% endfor %}
+        </select>
+        <button class="btn-launch" type="submit" style="width:100%;justify-content:center">Start poll</button>
+      </form>
+    </div>
+
+    <div class="launch-card">
+      <h3>Wager show</h3>
+      <p>Teams bet points on the answer before it is revealed. Bold and right pays off.</p>
+      <form method="post" action="/live/new">
+        <input type="hidden" name="game_type" value="wager" />
+        <select class="form-input" name="set_id" required>
+          {% for s in wager_sets %}<option value="{{ s['id'] }}">{{ s['title'] }} ({{ s['count'] }})</option>{% endfor %}
+        </select>
+        <button class="btn-launch" type="submit" style="width:100%;justify-content:center">Start wager</button>
+      </form>
+    </div>
+
+    <div class="launch-card">
+      <h3>Jeopardy</h3>
+      <p>The projector board with teams in the room. Opens in a new tab for the big screen.</p>
+      <select class="form-input" id="jset">
+        {% for s in jeopardy_sets %}<option value="{{ s['id'] }}">{{ s['title'] }}</option>{% endfor %}
+      </select>
+      <a class="btn-launch" style="width:100%;justify-content:center" target="_blank" rel="noopener"
+         href="/games/jeopardy" onclick="this.href='/games/jeopardy?set='+document.getElementById('jset').value">
+        Launch board
+      </a>
+    </div>
+
+  </div>
+
+  <p class="mini-note" style="text-align:left;margin-top:1.2rem">Starting a game gives you a join code to put on
+    the projector. Only one live game runs at a time, so starting a new one closes the last.</p>
+
+  {% else %}
+
+  <div class="join-box">
+    <div class="section-label">Join a game</div>
+    <p style="color:var(--text-dim);margin-bottom:1.2rem">Enter the code your host put on the screen.</p>
+    <form method="get" action="/live" style="display:flex;flex-direction:column;gap:.9rem">
+      <input class="form-input code-in" name="code" maxlength="5" placeholder="CODE" autocomplete="off" required />
+      <button class="btn btn-primary btn-big" type="submit">Join</button>
+    </form>
+  </div>
+
+  {% endif %}
+</div>
+{% endblock %}

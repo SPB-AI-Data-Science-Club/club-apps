@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard{% endblock %}
+{% block head %}<link rel="stylesheet" href="/static/live.css?v=3" />{% endblock %}
+{% block content %}
+<div class="main-header">
+  <h1 class="main-title">Welcome back, {{ current_user['name'].split(' ')[0] }}</h1>
+</div>
+
+<div class="main-content">
+<div class="dash-grid">
+
+  <div class="card dash-card">
+    <div class="card-label">Next Meeting</div>
+    {% if next_meeting %}
+      <div class="dash-meeting-topic">{{ next_meeting['topic'] }}</div>
+      <div class="dash-meeting-meta">
+        <span class="dash-meta-chip">{{ next_meeting['date'] }}</span>
+        {% if next_meeting['location'] %}<span class="dash-meta-chip">{{ next_meeting['location'] }}</span>{% endif %}
+      </div>
+    {% else %}
+      <div class="dash-empty">No upcoming meetings scheduled yet.</div>
+    {% endif %}
+    <a class="dash-link" href="/schedule">Full schedule</a>
+  </div>
+
+  <div class="card dash-card">
+    <div class="card-label">Your Learning</div>
+    <div class="dash-progress-row">
+      <span class="dash-progress-num">{{ learn.done }}<span class="dash-progress-total">/{{ learn.total_days }}</span></span>
+      <span class="dash-progress-caption">lessons done{% if learn.score_pct %} &middot; {{ learn.score_pct }}% correct{% endif %}</span>
+    </div>
+    <div class="dash-bar-bg">
+      <div class="dash-bar" style="width: {{ (learn.done / learn.total_days * 100) if learn.total_days else 0 }}%"></div>
+    </div>
+    <a class="dash-link" href="/learn">Continue learning</a>
+  </div>
+
+  <div class="card dash-card">
+    <div class="card-label">Curriculum</div>
+    <div class="dash-progress-row">
+      <span class="dash-progress-num">{{ total_days }}</span>
+      <span class="dash-progress-caption">days of AI and data science</span>
+    </div>
+    <a class="dash-link" href="/curriculum">Browse the curriculum</a>
+    {% if current_user['role'] == 'admin' %}
+    <a class="dash-link" href="/admin/progress" style="margin-top:.4rem">See member progress</a>
+    {% endif %}
+  </div>
+
+  <div class="card dash-card dash-wide">
+    <div class="card-label">Latest Announcements</div>
+    {% if latest %}
+      {% for a in latest %}
+      <div class="dash-ann">
+        <div class="dash-ann-title">{% if a['pinned'] %}<span class="dash-pin">PINNED</span>{% endif %}{{ a['title'] }}</div>
+        <div class="dash-ann-meta">{{ a['author_name'] }} - {{ a['created_at'][:10] }}</div>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="dash-empty">Nothing posted yet.</div>
+    {% endif %}
+    <a class="dash-link" href="/announcements">All announcements</a>
+  </div>
+
+  <div class="card dash-card">
+    <div class="card-label">Live Demos</div>
+    <div class="dash-empty" style="margin-bottom:.75rem">Nine club projects presented as a full-screen deck with live previews, running on the club's servers.</div>
+    <a class="dash-link" href="/demo">Open the demo deck</a>
+  </div>
+
+  <div class="card dash-card">
+    <div class="card-label">Recent Resources</div>
+    {% if recent_resources %}
+      {% for r in recent_resources %}
+      <a class="dash-res" href="{{ r['url'] }}" target="_blank" rel="noopener">{{ r['title'] }}</a>
+      {% endfor %}
+    {% else %}
+      <div class="dash-empty">No resources added yet.</div>
+    {% endif %}
+    <a class="dash-link" href="/resources">All resources</a>
+  </div>
+
+</div>
+</div>
+{% endblock %}

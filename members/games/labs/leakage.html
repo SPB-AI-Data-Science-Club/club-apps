@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Leakage Lab - SPB Data Science</title>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
+<style>
+:root{--bg:#0c1322;--surface:#141f36;--s2:#18233c;--border:#22304d;--bl:#2c3b5e;--acc:#3f74d4;
+  --accl:#6494e8;--gold:#f2c14e;--green:#4ade80;--red:#f87171;--text:#e9eef8;--dim:#9fb0cb;--mut:#6e7f9d}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Public Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:20px}
+.wrap{max-width:720px;margin:0 auto}
+h1{font-size:1.3rem;font-weight:800;margin-bottom:.3rem}
+.sub{color:var(--dim);font-size:.9rem;line-height:1.5;margin-bottom:1.1rem;max-width:62ch}
+.feat{display:flex;align-items:flex-start;gap:.7rem;background:var(--surface);border:1px solid var(--border);
+  border-radius:10px;padding:.8rem 1rem;margin-bottom:.6rem;cursor:pointer;transition:border-color .12s}
+.feat:hover{border-color:var(--bl)}
+.feat.on{border-color:var(--acc)}
+.feat.leak.on{border-color:var(--red)}
+.feat input{margin-top:.2rem;width:18px;height:18px;accent-color:var(--acc)}
+.feat .ttl{font-weight:700}
+.feat .desc{color:var(--mut);font-size:.82rem;margin-top:.15rem;line-height:1.4}
+.feat .tag{font-size:.62rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em;padding:1px 6px;
+  border-radius:4px;margin-left:.4rem;vertical-align:middle}
+.tag-honest{background:rgba(74,222,128,.15);color:var(--green)}
+.tag-leak{background:rgba(248,113,113,.15);color:var(--red)}
+.row{display:flex;gap:.6rem;margin:1.1rem 0}
+button{font-family:inherit;cursor:pointer;border:none;border-radius:8px;padding:.6rem 1.2rem;font-weight:700;font-size:.95rem}
+.bp{background:var(--acc);color:#fff}.bp:hover{background:var(--accl)}
+.bs{background:var(--s2);color:var(--text);border:1px solid var(--bl)}
+.bars{display:grid;grid-template-columns:1fr 1fr;gap:.8rem;margin-top:.4rem}
+.bar-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1rem}
+.bar-card .lbl{font-size:.78rem;font-weight:700;color:var(--dim);margin-bottom:.5rem}
+.track{background:var(--s2);border-radius:8px;height:2.4rem;position:relative;overflow:hidden}
+.fill{height:100%;border-radius:8px;transition:width .6s ease;width:0}
+.fill.train{background:var(--acc)}.fill.hold{background:var(--gold)}
+.pct{position:absolute;right:.7rem;top:50%;transform:translateY(-50%);font-family:'JetBrains Mono',monospace;font-weight:700}
+#banner{margin-top:.9rem;padding:.85rem 1rem;border-radius:10px;font-weight:700;display:none;line-height:1.45}
+.win{background:rgba(74,222,128,.12);border:1px solid rgba(74,222,128,.4);color:var(--green)}
+.bust{background:rgba(248,113,113,.12);border:1px solid rgba(248,113,113,.4);color:var(--red)}
+.note{color:var(--mut);font-size:.78rem;margin-top:1rem;line-height:1.5}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>The Leakage Heist</h1>
+  <p class="sub">You are predicting which students pass the class. Pick the features to train on, then hit train.
+    One of these features is a trap that quietly contains the answer. It will rocket your training accuracy toward
+    a hundred percent, and then the honest hold out set, data the model has never seen, will expose the whole
+    thing. Find the best score you can get honestly.</p>
+
+  <div id="features"></div>
+
+  <div class="row">
+    <button class="bp" id="trainBtn">Train the model</button>
+    <button class="bs" id="resetBtn">New students</button>
+  </div>
+
+  <div class="bars">
+    <div class="bar-card"><div class="lbl">Training accuracy</div>
+      <div class="track"><div class="fill train" id="trainFill"></div><span class="pct" id="trainPct">-</span></div></div>
+    <div class="bar-card"><div class="lbl">Hold out accuracy (the truth)</div>
+      <div class="track"><div class="fill hold" id="holdFill"></div><span class="pct" id="holdPct">-</span></div></div>
+  </div>
+  <div id="banner"></div>
+  <p class="note">Target leakage is one of the most common ways a real model looks amazing in testing and then
+    fails in production. The fix is boring but vital, only feed the model information it would truly have at the
+    moment of prediction.</p>
+</div>
+
+<script>
+const FEATURES = [
+  {id:'hours', name:'Hours studied per week', desc:'Honest. Known before the final, genuinely predictive.', kind:'honest'},
+  {id:'attend', name:'Class attendance', desc:'Honest. Available all semester, moderately predictive.', kind:'honest'},
+  {id:'sleep', name:'Average hours of sleep', desc:'Honest but weak. A little signal, mostly noise.', kind:'honest'},
+  {id:'finalpct', name:'Final exam percentage', desc:'This is the final score itself. You would not have it before the final.', kind:'leak'},
+];
+let seed = 5, N = 240;
+const rnd = () => { seed = (seed*1103515245 + 12345) % 2147483648; return seed/2147483648; };
+const gauss = () => (rnd()+rnd()+rnd()+rnd()-2)/2;
+let data = [];
+function makeData(){
+  data = [];
+  for(let i=0;i<N;i++){
+    const hours = 2 + rnd()*18, attend = rnd(), sleep = 4 + rnd()*6;
+    const score = 0.09*hours + 1.6*attend + 0.05*sleep + gauss()*0.7 - 1.2;
+    const pass = (1/(1+Math.exp(-score))) > 0.5 ? 1 : 0;
+    // The leak: final percentage is basically the label, only truthful on the training split.
+    const finalpct_train = pass ? 0.7 + rnd()*0.3 : 0.2 + rnd()*0.35;
+    const finalpct_hold  = 0.2 + rnd()*0.7; // at prediction time it is simply unknown, so noise
+    data.push({hours, attend, sleep, finalpct_train, finalpct_hold, pass,
+               split: i < N*0.6 ? 'train' : 'hold'});
+  }
+}
+function featVec(d, ids, useHoldLeak){
+  return ids.map(id => {
+    // Center the leak on the same scale as the honest features so the model
+    // actually leans on it. On the hold out it is pure noise, so that reliance
+    // is exactly what makes the score collapse.
+    if(id==='finalpct') return ((useHoldLeak ? d.finalpct_hold : d.finalpct_train) - 0.5) * 4;
+    if(id==='hours') return (d.hours-10)/6;
+    if(id==='attend') return (d.attend-0.5)*2;
+    if(id==='sleep') return (d.sleep-7)/2;
+  });
+}
+// Compact logistic regression via batch gradient descent.
+function trainLR(rows, ids){
+  let w = ids.map(()=>0), b = 0;
+  const lr = 0.3;
+  for(let ep=0; ep<400; ep++){
+    let gw = ids.map(()=>0), gb = 0;
+    for(const d of rows){
+      const x = featVec(d, ids, false);
+      const z = x.reduce((s,xi,i)=>s+xi*w[i], b);
+      const p = 1/(1+Math.exp(-z)), e = p - d.pass;
+      x.forEach((xi,i)=> gw[i]+=e*xi); gb += e;
+    }
+    w = w.map((wi,i)=> wi - lr*gw[i]/rows.length);
+    b -= lr*gb/rows.length;
+  }
+  return {w, b};
+}
+function accuracy(model, rows, ids, useHoldLeak){
+  let c = 0;
+  for(const d of rows){
+    const x = featVec(d, ids, useHoldLeak);
+    const z = x.reduce((s,xi,i)=>s+xi*model.w[i], model.b);
+    if(((1/(1+Math.exp(-z)))>0.5?1:0) === d.pass) c++;
+  }
+  return c/rows.length;
+}
+
+function selectedIds(){ return FEATURES.filter(f=>document.getElementById('cb_'+f.id).checked).map(f=>f.id); }
+function renderFeatures(){
+  document.getElementById('features').innerHTML = FEATURES.map(f=>`
+    <label class="feat ${f.kind}" id="feat_${f.id}">
+      <input type="checkbox" id="cb_${f.id}" ${f.id==='hours'?'checked':''} />
+      <div><span class="ttl">${f.name}</span>
+        <span class="tag ${f.kind==='leak'?'tag-leak':'tag-honest'}">${f.kind==='leak'?'???':'honest'}</span>
+        <div class="desc">${f.desc}</div></div>
+    </label>`).join('');
+  FEATURES.forEach(f=>{
+    const cb = document.getElementById('cb_'+f.id);
+    const sync = () => document.getElementById('feat_'+f.id).classList.toggle('on', cb.checked);
+    cb.onchange = sync; sync();
+  });
+}
+function setBar(fill, pct, val){
+  document.getElementById(fill).style.width = (val*100)+'%';
+  document.getElementById(pct).textContent = (val*100).toFixed(0)+'%';
+}
+document.getElementById('trainBtn').onclick = () => {
+  const ids = selectedIds();
+  const b = document.getElementById('banner');
+  if(!ids.length){ b.style.display='block'; b.className='bust'; b.textContent='Pick at least one feature first.'; return; }
+  const trainRows = data.filter(d=>d.split==='train'), holdRows = data.filter(d=>d.split==='hold');
+  const model = trainLR(trainRows, ids);
+  const trAcc = accuracy(model, trainRows, ids, false);
+  const hoAcc = accuracy(model, holdRows, ids, true);
+  setBar('trainFill','trainPct',trAcc); setBar('holdFill','holdPct',hoAcc);
+  b.style.display='block';
+  const usedLeak = ids.includes('finalpct');
+  if(usedLeak){ b.className='bust';
+    b.textContent = 'Busted. Training hit ' + (trAcc*100).toFixed(0) + '% but hold out crashed to ' + (hoAcc*100).toFixed(0) + '%. The final exam percentage was the answer in disguise, and you will never have it before the final.'; }
+  else if(hoAcc >= 0.72){ b.className='win';
+    b.textContent = 'Honest and solid. Hold out accuracy ' + (hoAcc*100).toFixed(0) + '% with no leaks. That number you can actually trust.'; }
+  else { b.className='win';
+    b.textContent = 'No leaks here, hold out accuracy ' + (hoAcc*100).toFixed(0) + '%. Try adding another honest feature to push it higher.'; }
+};
+document.getElementById('resetBtn').onclick = () => {
+  makeData();
+  ['trainFill','holdFill'].forEach(f=>document.getElementById(f).style.width='0');
+  document.getElementById('trainPct').textContent='-'; document.getElementById('holdPct').textContent='-';
+  document.getElementById('banner').style.display='none';
+};
+renderFeatures(); makeData();
+</script>
+</body>
+</html>

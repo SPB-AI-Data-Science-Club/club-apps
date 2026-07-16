@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Announcements{% endblock %}
+
+{% block content %}
+<div class="main-header">
+  <h1 class="main-title">Announcements</h1>
+</div>
+
+<div class="main-content">
+
+  {% if current_user and current_user['role'] == 'admin' %}
+  <div class="post-form">
+    <div class="post-form-title">Post Announcement</div>
+    <form method="POST" action="/admin/announcement/post">
+      <div class="form-row">
+        <label for="ann-title">Title</label>
+        <input class="form-input" type="text" id="ann-title" name="title" placeholder="Announcement title" required />
+      </div>
+      <div class="form-row">
+        <label for="ann-content">Content</label>
+        <textarea class="form-textarea" id="ann-content" name="content" placeholder="Write your announcement..." required></textarea>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;">
+        <label class="form-check">
+          <input type="checkbox" name="pinned" value="1" />
+          Pin to top
+        </label>
+        <button type="submit" class="btn btn-primary">Post</button>
+      </div>
+    </form>
+  </div>
+  {% endif %}
+
+  {% if items %}
+    {% for item in items %}
+    <div class="ann-card {% if item['pinned'] %}pinned{% endif %}">
+      {% if item['pinned'] %}
+      <div class="ann-pin-mark">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        Pinned
+      </div>
+      {% endif %}
+
+      <div class="ann-title">{{ item['title'] }}</div>
+      <div class="ann-content">{{ item['content'] }}</div>
+      <div class="ann-meta">
+        <span class="ann-meta-left">{{ item['author_name'] }} &middot; {{ item['created_at'][:10] }}</span>
+        {% if current_user and current_user['role'] == 'admin' %}
+        <div class="ann-actions">
+          <form method="POST" action="/admin/announcement/pin/{{ item['id'] }}" style="display:inline;">
+            <button type="submit" class="btn btn-ghost btn-sm">
+              {% if item['pinned'] %}Unpin{% else %}Pin{% endif %}
+            </button>
+          </form>
+          <form method="POST" action="/admin/announcement/delete/{{ item['id'] }}" style="display:inline;"
+                onsubmit="return confirm('Delete this announcement?')">
+            <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+          </form>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  {% else %}
+  <div class="empty">
+    <div class="empty-icon">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M22 17H2a3 3 0 0 0 3-3V9a7 7 0 0 1 14 0v5a3 3 0 0 0 3 3z"/><path d="M9 17v1a3 3 0 0 0 6 0v-1"/>
+      </svg>
+    </div>
+    No announcements yet.
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}Resources{% endblock %}
+
+{% block content %}
+<div class="main-header">
+  <h1 class="main-title">Resources</h1>
+</div>
+
+<div class="main-content">
+
+  {% if current_user and current_user['role'] == 'admin' %}
+  <div class="post-form">
+    <div class="post-form-title">Add Resource</div>
+    <form method="POST" action="/admin/resource/add">
+      <div class="form-row-inline">
+        <div class="form-row">
+          <label>Title</label>
+          <input class="form-input" type="text" name="title" placeholder="Resource name" required />
+        </div>
+        <div class="form-row">
+          <label>Category</label>
+          <select class="form-select" name="category">
+            <option value="Tutorials">Tutorials</option>
+            <option value="Competitions">Competitions</option>
+            <option value="Tools">Tools</option>
+            <option value="Datasets">Datasets</option>
+            <option value="General">General</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <label>URL</label>
+        <input class="form-input" type="url" name="url" placeholder="https://..." required />
+      </div>
+      <div class="form-row">
+        <label>Description (optional)</label>
+        <input class="form-input" type="text" name="description" placeholder="Short description" />
+      </div>
+      <div style="display:flex;justify-content:flex-end;">
+        <button type="submit" class="btn btn-primary">Add</button>
+      </div>
+    </form>
+  </div>
+  {% endif %}
+
+  {% if grouped %}
+    {% for category, items in grouped.items() %}
+    <div class="resource-category">{{ category }}</div>
+    {% for item in items %}
+    <div class="resource-card">
+      <div style="flex:1;">
+        <a href="{{ item['url'] }}" target="_blank" rel="noopener" class="resource-link">
+          {{ item['title'] }}
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
+          </svg>
+        </a>
+        {% if item['description'] %}
+        <div class="resource-desc">{{ item['description'] }}</div>
+        {% endif %}
+      </div>
+      {% if current_user and current_user['role'] == 'admin' %}
+      <form method="POST" action="/admin/resource/delete/{{ item['id'] }}"
+            onsubmit="return confirm('Remove this resource?')">
+        <button type="submit" class="btn btn-danger btn-sm">Remove</button>
+      </form>
+      {% endif %}
+    </div>
+    {% endfor %}
+    {% endfor %}
+  {% else %}
+  <div class="empty">
+    <div class="empty-icon">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+      </svg>
+    </div>
+    No resources added yet.
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

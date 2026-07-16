@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+{% block title %}Learn{% endblock %}
+{% block head %}<link rel="stylesheet" href="/static/live.css?v=3" />{% endblock %}
+{% block content %}
+<div class="main-header">
+  <h1 class="main-title">Learn</h1>
+</div>
+
+<div class="main-content">
+  <div class="curr-hero">
+    <p>Work through the course at your own pace. Each lesson has a short read and then tests you with a mix of
+      multiple choice, select all, number, and written questions. Your best score on every day is saved to your
+      account, so you can always come back and beat it.</p>
+  </div>
+
+  <div class="curr-progress-card card">
+    <div class="dash-progress-row">
+      <span class="dash-progress-num">{{ summary.done }}<span class="dash-progress-total">/{{ summary.total_days }}</span></span>
+      <span class="dash-progress-caption">lessons finished{% if summary.score_pct %} &middot; {{ summary.score_pct }}% correct so far{% endif %}</span>
+    </div>
+    <div class="dash-bar-bg"><div class="dash-bar" style="width: {{ (summary.done / summary.total_days * 100) if summary.total_days else 0 }}%"></div></div>
+  </div>
+
+  <div class="day-grid">
+    {% for d in days %}
+    <a class="day-card {% if d.completed %}done{% endif %}" href="/learn/{{ d.day }}">
+      <div class="day-badge"><span class="k">Day</span><span class="n">{{ d.day }}</span></div>
+      <div class="day-title">{{ d.title }}</div>
+      <div class="day-foot">
+        {% if d.completed %}
+        <span class="status-chip good">Best {{ d.correct }}/{{ d.total }}</span>
+        {% else %}
+        <span class="status-chip">Not started</span>
+        {% endif %}
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}
