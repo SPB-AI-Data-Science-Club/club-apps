@@ -101,12 +101,12 @@
     <div class="gpu-status-pill" id="gpuPill"><div class="gd" id="gpuDot"></div><span class="gt" id="gpuTxt">GPUs</span></div>
 
     <div class="mode-tabs">
-      <button class="mode-tab active" id="tabAI" onclick="setMode('ai')">AI Restyle</button>
-      <button class="mode-tab" id="tabClassic" onclick="setMode('classic')">Classic Filters</button>
+      <button class="mode-tab" id="tabAI" onclick="setMode('ai')">AI Restyle</button>
+      <button class="mode-tab active" id="tabClassic" onclick="setMode('classic')">Classic Filters</button>
     </div>
 
     <!-- AI mode: a real diffusion model driven by your words -->
-    <div id="aiPanel">
+    <div id="aiPanel" class="hidden">
       <div class="section-label">Describe Any Style</div>
       <textarea id="stylePrompt" class="style-prompt" rows="3" maxlength="300"
                 placeholder="Describe a style, for example a stained glass window with glowing jewel tones"
@@ -129,7 +129,7 @@
     </div>
 
     <!-- Classic mode: handcrafted image-processing filters, no GPU needed -->
-    <div id="classicPanel" class="hidden">
+    <div id="classicPanel">
       <div class="section-label">Filter</div>
       <div class="style-grid">
         {% for s in styles %}
@@ -141,7 +141,7 @@
       </div>
     </div>
 
-    <button class="apply-btn" id="applyBtn" onclick="applyStyle()" disabled>Generate</button>
+    <button class="apply-btn" id="applyBtn" onclick="applyStyle()" disabled>Apply Filter</button>
   </aside>
 
   <div class="main">
@@ -196,7 +196,7 @@
 <script>
 let currentFile = null;
 let selectedStyle = '{{ styles[0].id }}';
-let mode = 'ai';
+let mode = 'classic';   // 'ai' needs the GPU box, offline since 2026-07
 
 function setMode(m) {
   mode = m;
@@ -398,6 +398,6 @@ function showResult(src, filename) {
   upd();setInterval(upd,20000);
 })();
 </script>
-<script src="https://spbdatascience.org/js/gpu-status.js?v=6" defer></script>
+<script src="https://spbdatascience.org/js/gpu-status.js?v=24" defer></script>
 </body>
 </html>
