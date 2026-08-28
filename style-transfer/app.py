@@ -4,6 +4,7 @@ Apply artistic effects to any uploaded image using PIL/NumPy algorithms.
 No GPU required — runs on CPU only.
 Also exposes /api/gpu-status which pings the necron GPU worker.
 """
+import os
 import io
 import base64
 import math
@@ -20,7 +21,7 @@ app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16 MB
 # memory (decompression bomb). Pillow raises DecompressionBombError past this.
 Image.MAX_IMAGE_PIXELS = 50_000_000  # ~50 MP
 
-NECRON = "http://100.72.210.90:15100"
+NECRON = os.environ.get("GPU_WORKER_URL", "http://gpu-worker:15100")
 
 
 # ── Style functions ──────────────────────────────────────────────────────────

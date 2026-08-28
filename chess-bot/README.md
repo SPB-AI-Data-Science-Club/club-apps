@@ -1,45 +1,20 @@
 # Chess Bot
 
-An AI chess opponent with variable difficulty powered by the Stockfish engine.
+Play chess against Stockfish at calibrated strength, from 1320 to 2500 ELO.
 
-**ELO Levels:** 800 (Beginner) · 1200 (Intermediate) · 1600 (Advanced) · 2000 (Expert)
+## Features
 
-## Quick Start
+- Four difficulty levels using Stockfish's `UCI_LimitStrength` and `UCI_Elo` options, clamped to the range the engine binary actually supports
+- Play as white or black; the engine opens when you take black
+- Drag-and-drop board with legal-move validation on both client and server
+- Algebraic move history and a full-strength hint engine
+- Engine-thinking lock so the board cannot be touched mid-computation
 
-```bash
-bash setup.sh
-source .venv/bin/activate
-python app.py
-# → open http://localhost:5001
-```
+## How it works
 
-## Requirements
+The Flask backend drives Stockfish over the UCI protocol with `python-chess`. Each move request carries the current FEN; the server validates the player's move, asks the engine for a reply at the configured strength, and returns the new position plus the move in standard algebraic notation. The client (chessboard.js + chess.js) never trusts its own state for rules: promotion, checkmate, and draw detection all come from the server.
 
-- Python 3.10+
-- Stockfish engine (`brew install stockfish` on Mac)
-
-## Manual Setup
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-brew install stockfish      # macOS
-# apt-get install stockfish  # Ubuntu/Debian
-
-python app.py
-```
-
-## Custom Stockfish Path
-
-If Stockfish is not on your PATH:
-
-```bash
-export STOCKFISH_PATH=/path/to/stockfish
-python app.py
-```
-
-## API Endpoints
+## API
 
 | Method | Route | Description |
 |--------|-------|-------------|
@@ -47,19 +22,16 @@ python app.py
 | POST | `/api/move` | Submit player move, get engine reply |
 | POST | `/api/hint` | Get the best move for the current position |
 
-## Running on the Club's RTX Machine (necron)
+## Stack
 
-SSH in via Tailscale and run:
+Python, Flask, python-chess, Stockfish, chessboard.js, chess.js
+
+## Local development
 
 ```bash
-cd ~/projects/chess-bot
-source .venv/bin/activate
-STOCKFISH_PATH=$(which stockfish) python app.py
+pip install flask python-chess
+# install stockfish (apt install stockfish / brew install stockfish)
+python app.py
 ```
 
-Access from any device on Tailscale at `http://necron:5001`
-
-## Tech Stack
-
-- **Backend:** Python · Flask · python-chess · Stockfish UCI
-- **Frontend:** chessboard.js · chess.js · vanilla JS
+Set `STOCKFISH_PATH` if the binary is not on your PATH.

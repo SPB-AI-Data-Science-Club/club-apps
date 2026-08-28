@@ -14,7 +14,7 @@ Five graph-search algorithms animated on an interactive grid.
 
 ## Implementation notes
 
-All algorithms run client-side in vanilla JavaScript. The weighted searches share one priority-queue implementation (a binary min-heap) and differ only in their priority function: `g` for Dijkstra, `h` for Greedy, `g + h` for A*, which is the cleanest way to see that these three are the same algorithm with different opinions. Flask only serves the page, keeping deployment identical to the club's other projects.
+All algorithms run client-side in vanilla JavaScript. The weighted searches share one priority-queue implementation (a binary min-heap) and differ only in their priority function: `g` for Dijkstra, `h` for Greedy, `g + h` for A*, which makes it clear that these three are the same algorithm with different priority functions. Flask only serves the page, keeping deployment identical to the club's other projects.
 
 ## Stack
 
