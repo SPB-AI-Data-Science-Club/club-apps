@@ -2,7 +2,7 @@
 
 Generates a high-quality, photorealistic image from a text prompt, optionally guided by a reference photo the visitor uploads.
 
-**Live demo:** [photo.spbdatascience.org](https://photo.spbdatascience.org)
+**Not currently deployed.** Runs locally; see Local development below.
 
 ## What it does
 

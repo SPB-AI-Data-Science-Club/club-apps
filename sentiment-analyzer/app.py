@@ -4,6 +4,7 @@ VPS proxy + stock data layer.
 Sentiment inference forwards to the necron GPU worker when available.
 Stock price / news data is served directly via yfinance (always available).
 """
+import os
 from datetime import datetime, timezone
 from flask import Flask, render_template, request, jsonify
 import requests as http
@@ -11,7 +12,7 @@ import yfinance as yf
 
 app = Flask(__name__)
 
-NECRON          = "http://100.72.210.90:15100"
+NECRON          = os.environ.get("GPU_WORKER_URL", "http://gpu-worker:15100")
 CONNECT_TIMEOUT = 4
 READ_TIMEOUT    = 90
 

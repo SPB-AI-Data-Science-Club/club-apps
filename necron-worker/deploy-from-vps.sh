@@ -4,7 +4,7 @@
 #
 #   ./deploy-from-vps.sh <gpu-box-tailscale-name-or-ip>
 #
-# The old hardcoded address (necron, 100.72.210.90) is dead: that box was wiped and
+# The old hardcoded worker address is dead: that box was wiped and
 # the tailnet deleted after the July 2026 compromise. The rebuilt box gets a new
 # name/IP, so pass it in.
 set -euo pipefail

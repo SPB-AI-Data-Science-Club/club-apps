@@ -4,6 +4,7 @@ Generates a high-quality, photorealistic image from a text prompt, optionally
 guided by a reference photo the visitor uploads. Runs RealVisXL on the club's
 GPU servers; submission returns a job id the page polls until the image is ready.
 """
+import os
 from flask import Flask, render_template, request, jsonify
 import requests as http
 import time
@@ -12,7 +13,7 @@ import threading
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024
 
-NECRON          = "http://100.72.210.90:15100"
+NECRON          = os.environ.get("GPU_WORKER_URL", "http://gpu-worker:15100")
 CONNECT_TIMEOUT = 4
 READ_TIMEOUT    = 120
 

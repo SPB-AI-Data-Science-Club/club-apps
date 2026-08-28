@@ -2,7 +2,7 @@
 
 Design a neural network in the browser and watch it learn, live.
 
-**Live demo:** [neural.spbdatascience.org](https://neural.spbdatascience.org)
+**Not currently deployed.** Runs locally; see Local development below.
 
 ## Features
 

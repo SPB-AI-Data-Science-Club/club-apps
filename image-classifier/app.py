@@ -3,6 +3,7 @@ Image Classifier
 Tries to forward inference to the necron GPU worker first (fast).
 Falls back to CPU inference on the VPS using torchvision (slower but always works).
 """
+import os
 import io
 import json
 import time
@@ -13,7 +14,7 @@ import requests as http
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024
 
-NECRON          = "http://100.72.210.90:15100"
+NECRON          = os.environ.get("GPU_WORKER_URL", "http://gpu-worker:15100")
 CONNECT_TIMEOUT = 4
 READ_TIMEOUT    = 120
 
