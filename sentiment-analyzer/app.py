@@ -13,6 +13,11 @@ import yfinance as yf
 app = Flask(__name__)
 
 NECRON          = os.environ.get("GPU_WORKER_URL", "http://gpu-worker:15100")
+# Bearer token for the GPU worker. The worker refuses every request without it
+# (see necron-worker/app.py); network reachability alone is not authorisation.
+# Same value as WORKER_TOKEN in the worker's .env.
+WORKER_TOKEN = os.environ.get("WORKER_TOKEN", "")
+WORKER_AUTH = ({"Authorization": f"Bearer {WORKER_TOKEN}"} if WORKER_TOKEN else {})
 CONNECT_TIMEOUT = 4
 READ_TIMEOUT    = 90
 
@@ -74,6 +79,7 @@ def _parse_news(raw_items: list) -> list:
 def necron_post(path: str, **kwargs):
     return http.post(
         f"{NECRON}{path}",
+        headers=WORKER_AUTH,
         timeout=(CONNECT_TIMEOUT, READ_TIMEOUT),
         **kwargs,
     )
@@ -284,4 +290,4 @@ def _no_html_cache(resp):
     return resp
 
 if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=5003)
+    app.run(debug=False, port=5003)

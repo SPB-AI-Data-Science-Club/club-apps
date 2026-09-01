@@ -1,0 +1,15 @@
+# GPU inference worker. Install a torch build matching the box's CUDA version
+# from pytorch.org first, then the rest of this file.
+#
+# Heavy model libraries are imported lazily inside the route handlers, so a
+# missing one here fails at first use rather than at startup. They are all
+# listed anyway: the worker is useless without them.
+flask>=3.0
+torch>=2.2
+torchvision>=0.17
+transformers>=4.38
+diffusers>=0.27
+accelerate>=0.28
+bitsandbytes>=0.43        # 4-bit quantization for the FLUX pipelines
+sentencepiece>=0.2        # T5 tokenizer used by FLUX
+Pillow>=10.2

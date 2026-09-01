@@ -1,0 +1,3 @@
+# Thin proxy in front of the GPU worker; all model work happens on the worker.
+flask>=3.0
+requests>=2.31

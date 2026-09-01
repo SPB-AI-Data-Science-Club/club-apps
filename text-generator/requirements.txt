@@ -1,0 +1,2 @@
+# Character-level n-gram model, standard library only. Flask is the sole dep.
+flask>=3.0

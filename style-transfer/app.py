@@ -8,6 +8,7 @@ import os
 import io
 import base64
 import math
+import re as _re
 import time
 import threading
 import requests as http
@@ -22,6 +23,11 @@ app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16 MB
 Image.MAX_IMAGE_PIXELS = 50_000_000  # ~50 MP
 
 NECRON = os.environ.get("GPU_WORKER_URL", "http://gpu-worker:15100")
+# Bearer token for the GPU worker. The worker refuses every request without it
+# (see necron-worker/app.py); network reachability alone is not authorisation.
+# Same value as WORKER_TOKEN in the worker's .env.
+WORKER_TOKEN = os.environ.get("WORKER_TOKEN", "")
+WORKER_AUTH = ({"Authorization": f"Bearer {WORKER_TOKEN}"} if WORKER_TOKEN else {})
 
 
 # ── Style functions ──────────────────────────────────────────────────────────
@@ -242,6 +248,7 @@ def restyle():
             f"{NECRON}/jobs/stylize",
             files={"image": (file.filename, file.read(), file.content_type)},
             data={"prompt": prompt, "strength": strength},
+            headers=WORKER_AUTH,
             timeout=(3, 30),
         )
         return (resp.content, resp.status_code, {"Content-Type": "application/json"})
@@ -252,10 +259,19 @@ def restyle():
         }), 503
 
 
+# Job ids come from the worker as uuid4().hex[:12]. Validate before interpolating
+# into the worker URL: an unchecked id lets a caller steer the proxied path (".."
+# segments are normalised away by requests/urllib3) and reach worker endpoints
+# this app never meant to expose.
+_JID_RE = _re.compile(r"\A[0-9a-f]{12}\Z")
+
+
 @app.route("/api/job/<jid>")
 def job_status(jid):
+    if not _JID_RE.match(jid):
+        return jsonify({"error": "Bad job id"}), 400
     try:
-        resp = http.get(f"{NECRON}/jobs/{jid}", timeout=(3, 15))
+        resp = http.get(f"{NECRON}/jobs/{jid}", headers=WORKER_AUTH, timeout=(3, 15))
         return (resp.content, resp.status_code, {"Content-Type": "application/json"})
     except http.exceptions.RequestException:
         return jsonify({"error": "GPU server unreachable", "gpu_offline": True}), 503
@@ -263,20 +279,32 @@ def job_status(jid):
 
 @app.route("/api/job/<jid>/result")
 def job_result(jid):
+    if not _JID_RE.match(jid):
+        return jsonify({"error": "Bad job id"}), 400
     try:
-        resp = http.get(f"{NECRON}/jobs/{jid}/result", timeout=(3, 60))
+        resp = http.get(f"{NECRON}/jobs/{jid}/result", headers=WORKER_AUTH,
+                        timeout=(3, 60))
         return (resp.content, resp.status_code,
                 {"Content-Type": resp.headers.get("Content-Type", "application/octet-stream")})
     except http.exceptions.RequestException:
         return jsonify({"error": "GPU server unreachable"}), 503
 
 
-# Short server-side cache so the public GPU pill can poll often (every couple of
-# seconds, on every open page) without multiplying load on the VPS or the necron
-# worker: no matter how many visitors poll, necron is hit at most ~once/second.
+# Short server-side cache so the public GPU pill can poll often (on every open
+# page) without multiplying load on the VPS or the necron worker: no matter how
+# many visitors poll, necron is hit at most ~once/second.
+#
+# The offline result is cached too, and that is the important half. This app runs
+# under `gunicorn -w 1`; a request that misses the cache calls necron with a 3s
+# timeout and holds the single worker for the whole wait. Caching only successes
+# means that the moment necron goes slow or unreachable -- exactly when load
+# matters -- every poll becomes an uncached 3s block, the worker is permanently
+# occupied by the status pill, and the actual style-transfer demo queues behind
+# it. Offline gets a shorter TTL so recovery is still noticed promptly.
 _GPU_CACHE = {"t": 0.0, "payload": None}
 _GPU_CACHE_LOCK = threading.Lock()
 _GPU_CACHE_TTL = 1.0
+_GPU_CACHE_TTL_OFFLINE = 5.0
 
 
 @app.route("/api/gpu-status")
@@ -285,10 +313,14 @@ def gpu_status():
     Projects page and the GPU pill on every site surface. Cached ~1s."""
     now = time.time()
     with _GPU_CACHE_LOCK:
-        if _GPU_CACHE["payload"] is not None and now - _GPU_CACHE["t"] < _GPU_CACHE_TTL:
-            return jsonify(_GPU_CACHE["payload"])
+        cached = _GPU_CACHE["payload"]
+        if cached is not None:
+            ttl = (_GPU_CACHE_TTL_OFFLINE if cached.get("status") == "offline"
+                   else _GPU_CACHE_TTL)
+            if now - _GPU_CACHE["t"] < ttl:
+                return jsonify(cached)
     try:
-        resp = http.get(f"{NECRON}/status", timeout=3)
+        resp = http.get(f"{NECRON}/status", headers=WORKER_AUTH, timeout=3)
         data = resp.json()
         # Normalise status label for the frontend
         status = data.get("status", "unknown")
@@ -315,7 +347,11 @@ def gpu_status():
             _GPU_CACHE["t"], _GPU_CACHE["payload"] = now, payload
         return jsonify(payload)
     except http.exceptions.RequestException:
-        return jsonify({"status": "offline", "gpu": "Club GPU"})
+        # Cache this too -- see the note on _GPU_CACHE_TTL_OFFLINE above.
+        payload = {"status": "offline", "gpu": "Club GPU", "active_jobs": 0}
+        with _GPU_CACHE_LOCK:
+            _GPU_CACHE["t"], _GPU_CACHE["payload"] = now, payload
+        return jsonify(payload)
 
 
 

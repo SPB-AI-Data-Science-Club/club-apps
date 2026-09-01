@@ -1,7 +1,8 @@
 """
 Necron GPU Worker
 Unified inference server running on the club's GPU workstation.
-Accessible only via Tailscale (port 15100).
+Reachable only over the private network AND only with a valid WORKER_TOKEN
+bearer header; see the Authentication note below.
 
 Handles:
   GET  /status              -> GPU/job status
@@ -10,6 +11,9 @@ Handles:
   POST /classify            -> image classification (multipart)
 """
 import io
+import os
+import sys
+import hmac
 import base64
 import threading
 import urllib.request
@@ -23,6 +27,41 @@ app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 32 * 1024 * 1024
 # Cap decoded pixels so a small huge-dimension upload can't exhaust GPU-box RAM.
 Image.MAX_IMAGE_PIXELS = 50_000_000  # ~50 MP
+
+# ── Authentication ───────────────────────────────────────────────────────────
+# Every route requires a shared bearer token, checked below in _require_token.
+#
+# The network boundary is NOT the security boundary. That was the lesson of the
+# July 2026 compromise: reaching the private network was made equivalent to full
+# control of this box, so one stolen SSH key was enough. Anything that can route
+# to port 15100 must still prove it holds the token before it can queue GPU work.
+#
+# Set WORKER_TOKEN in the worker's .env and in the calling app's .env. Generate
+# one with:  python3 -c "import secrets; print(secrets.token_urlsafe(32))"
+WORKER_TOKEN = os.environ.get("WORKER_TOKEN", "")
+# Escape hatch for someone poking at the worker on the GPU box itself. It must be
+# set deliberately; it is never the default, so a missing token fails closed.
+ALLOW_NO_AUTH = os.environ.get("WORKER_ALLOW_NO_AUTH") == "1"
+
+if not WORKER_TOKEN and not ALLOW_NO_AUTH:
+    sys.exit(
+        "necron-worker: refusing to start with no WORKER_TOKEN.\n"
+        "  Set WORKER_TOKEN in the worker's .env (and in each app that calls it):\n"
+        '    python3 -c "import secrets; print(secrets.token_urlsafe(32))"\n'
+        "  For a deliberate local no-auth run, set WORKER_ALLOW_NO_AUTH=1."
+    )
+
+
+@app.before_request
+def _require_token():
+    if ALLOW_NO_AUTH:
+        return None
+    header = request.headers.get("Authorization", "")
+    presented = header[7:] if header.startswith("Bearer ") else ""
+    # compare_digest, not ==, so a wrong token cannot be recovered by timing.
+    if not hmac.compare_digest(presented, WORKER_TOKEN):
+        return jsonify({"error": "Unauthorized"}), 401
+    return None
 
 # ── Job tracking ─────────────────────────────────────────────────────────────
 _lock        = threading.Lock()
@@ -411,7 +450,12 @@ def classify_route():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=15100, debug=False)
+    # Loopback by default. README and setup.sh both promise this worker is never
+    # exposed to the internet, but this entrypoint used to bind 0.0.0.0 and hand
+    # that promise to whatever firewall happened to be in front of it. Production
+    # runs under gunicorn bound to the private address by setup.sh; set
+    # WORKER_BIND explicitly if you need that here.
+    app.run(host=os.environ.get("WORKER_BIND", "127.0.0.1"), port=15100, debug=False)
 
 # ── Generative job queue (SDXL-Turbo img2img + LTX image-to-video) ───────────
 # GPU work is serialized through a single worker thread. Submitting returns a

@@ -15,6 +15,11 @@ app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024
 
 NECRON          = os.environ.get("GPU_WORKER_URL", "http://gpu-worker:15100")
+# Bearer token for the GPU worker. The worker refuses every request without it
+# (see necron-worker/app.py); network reachability alone is not authorisation.
+# Same value as WORKER_TOKEN in the worker's .env.
+WORKER_TOKEN = os.environ.get("WORKER_TOKEN", "")
+WORKER_AUTH = ({"Authorization": f"Bearer {WORKER_TOKEN}"} if WORKER_TOKEN else {})
 CONNECT_TIMEOUT = 4
 READ_TIMEOUT    = 120
 
@@ -107,6 +112,7 @@ def classify_route():
                 f"{NECRON}/classify",
                 files={"image": (file.filename, raw, file.content_type)},
                 data={"model": model_name, "top_n": str(top_n)},
+                headers=WORKER_AUTH,
                 timeout=(CONNECT_TIMEOUT, READ_TIMEOUT),
             )
             return (resp.content, resp.status_code, {"Content-Type": "application/json"})
@@ -141,6 +147,7 @@ def classify_route():
                 f"{NECRON}/classify",
                 files={"image": ("url_image.jpg", raw, "image/jpeg")},
                 data={"model": model_name, "top_n": str(top_n)},
+                headers=WORKER_AUTH,
                 timeout=(CONNECT_TIMEOUT, READ_TIMEOUT),
             )
             return (resp.content, resp.status_code, {"Content-Type": "application/json"})
@@ -168,4 +175,4 @@ def _no_html_cache(resp):
     return resp
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5004)
+    app.run(debug=False, port=5004)

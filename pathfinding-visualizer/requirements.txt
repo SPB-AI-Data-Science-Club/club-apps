@@ -1,0 +1,3 @@
+# The visualiser is entirely client-side; Flask only serves the page.
+# In production nginx serves the template directly and no process runs.
+flask>=3.0
