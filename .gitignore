@@ -23,6 +23,10 @@ node_modules/
 backups/
 *.log
 .DS_Store
+# editor/manual backups: keep them out of the repo, use backups/<ts>-<label>/
+*.bak
+*.bak.*
+*.orig
 # model caches / weights (re-downloadable, too big for git)
 .hf_cache/
 hf_cache/

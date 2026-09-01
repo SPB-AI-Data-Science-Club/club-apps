@@ -43,9 +43,27 @@ pip install -r requirements.txt
 python app.py
 ```
 
+`python app.py` is the development server: it binds loopback with the debugger
+off, so it is reachable at `http://127.0.0.1:<port>` and nowhere else. Production
+runs the same app under gunicorn.
+
 Apps that need configuration read it from a per-app `.env` at run time. The
 variable names are listed in [`docs/DEPLOY-REFERENCE.txt`](docs/DEPLOY-REFERENCE.txt),
 along with the systemd units and the port map.
+
+### Apps that use the GPU worker
+
+`style-transfer`, `photo-editor`, `image-classifier` and `sentiment-analyzer`
+call `necron-worker` when it is available and fall back to CPU or a graceful 503
+when it is not. The worker requires a shared bearer token, so those apps and the
+worker all need the same `WORKER_TOKEN` in their `.env`:
+
+```bash
+python3 -c "import secrets; print(secrets.token_urlsafe(32))"
+```
+
+Without it the worker refuses to start, and the calling apps behave as though the
+GPU were offline. Nothing else in any app needs the token.
 
 ## Secrets
 

@@ -5,6 +5,7 @@ guided by a reference photo the visitor uploads. Runs RealVisXL on the club's
 GPU servers; submission returns a job id the page polls until the image is ready.
 """
 import os
+import re as _re
 from flask import Flask, render_template, request, jsonify
 import requests as http
 import time
@@ -14,6 +15,11 @@ app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024
 
 NECRON          = os.environ.get("GPU_WORKER_URL", "http://gpu-worker:15100")
+# Bearer token for the GPU worker. The worker refuses every request without it
+# (see necron-worker/app.py); network reachability alone is not authorisation.
+# Same value as WORKER_TOKEN in the worker's .env.
+WORKER_TOKEN = os.environ.get("WORKER_TOKEN", "")
+WORKER_AUTH = ({"Authorization": f"Bearer {WORKER_TOKEN}"} if WORKER_TOKEN else {})
 CONNECT_TIMEOUT = 4
 READ_TIMEOUT    = 120
 
@@ -92,6 +98,7 @@ def generate():
         resp = http.post(
             f"{NECRON}/jobs/generate",
             data=data, files=files,
+            headers=WORKER_AUTH,
             timeout=(CONNECT_TIMEOUT, 30),
         )
         return (resp.content, resp.status_code, {"Content-Type": "application/json"})
@@ -102,10 +109,20 @@ def generate():
         }), 503
 
 
+# Job ids come from the worker as uuid4().hex[:12]. Validate before interpolating
+# into the worker URL: an unchecked id lets a caller steer the proxied path (".."
+# segments are normalised away by requests/urllib3) and reach worker endpoints
+# this app never meant to expose.
+_JID_RE = _re.compile(r"\A[0-9a-f]{12}\Z")
+
+
 @app.route("/api/job/<jid>")
 def job_status(jid):
+    if not _JID_RE.match(jid):
+        return jsonify({"error": "Bad job id"}), 400
     try:
-        resp = http.get(f"{NECRON}/jobs/{jid}", timeout=(CONNECT_TIMEOUT, 15))
+        resp = http.get(f"{NECRON}/jobs/{jid}", headers=WORKER_AUTH,
+                        timeout=(CONNECT_TIMEOUT, 15))
         return (resp.content, resp.status_code, {"Content-Type": "application/json"})
     except http.exceptions.RequestException:
         return jsonify({"error": "GPU server unreachable", "gpu_offline": True}), 503
@@ -113,8 +130,11 @@ def job_status(jid):
 
 @app.route("/api/job/<jid>/result")
 def job_result(jid):
+    if not _JID_RE.match(jid):
+        return jsonify({"error": "Bad job id"}), 400
     try:
-        resp = http.get(f"{NECRON}/jobs/{jid}/result", timeout=(CONNECT_TIMEOUT, 60))
+        resp = http.get(f"{NECRON}/jobs/{jid}/result", headers=WORKER_AUTH,
+                        timeout=(CONNECT_TIMEOUT, 60))
         return (resp.content, resp.status_code,
                 {"Content-Type": resp.headers.get("Content-Type", "application/octet-stream")})
     except http.exceptions.RequestException:
@@ -131,4 +151,4 @@ def _no_html_cache(resp):
 
 
 if __name__ == "__main__":
-    app.run(debug=False, host="0.0.0.0", port=5010)
+    app.run(debug=False, port=5010)

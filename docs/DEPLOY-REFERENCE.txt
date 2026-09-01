@@ -1,3 +1,12 @@
+############ NGINX RATE-LIMIT ZONES (/etc/nginx/nginx.conf, http block) ############
+# REQUIRED. The server blocks below reference zone=gen_submit and gen_conn. Zones
+# can only be declared in the http context, not in a site file, and nginx fails
+# to start with "unknown limit_req zone" if they are missing. This section was
+# absent from earlier copies of this reference, which made the config below
+# undeployable as written -- put these in the http block BEFORE the sites load.
+limit_req_zone  $binary_remote_addr zone=gen_submit:10m rate=6r/m;
+limit_conn_zone $binary_remote_addr zone=gen_conn:10m;
+
 ############ NGINX SITE CONFIG (/etc/nginx/sites-available) ############
 server {
     listen 80 default_server;
@@ -21,8 +30,14 @@ server {
         add_header Cache-Control "public, max-age=31536000";
         include /etc/nginx/snippets/sec-headers.conf;
     }
-    # Old static /projects page retired; send it to the live demo showcase.
-    location = /projects { return 301 https://demo.spbdatascience.org; }
+    # DO NOT reinstate a 301 here. This line used to read
+    #   location = /projects { return 301 https://demo.spbdatascience.org; }
+    # and it is the single worst bug this site has had: 301 is permanent and
+    # browsers cache it forever, so long after the rule was deleted, any visitor
+    # who had ever loaded /projects still bounced to demo., with no server-side
+    # trace, because the request never reached the origin. /projects is now a
+    # real page. If a path may ever come back, redirect it 302, never 301.
+    # See handoff.md, "Redirect hygiene".
 
     # HTML pages must always revalidate so a deploy is reflected immediately
     # (prevents stale pages loading an old gpu-status.js, etc.).
@@ -367,7 +382,23 @@ WantedBy=multi-user.target
 */2 * * * * root /usr/local/bin/deploy-portfolio
 
 ############ ENV VARIABLE NAMES PER APP (values redacted) ############
-[members]  SECRET_KEY=<redacted> GOOGLE_CLIENT_ID=<redacted> GOOGLE_CLIENT_SECRET=<redacted> ADMIN_EMAILS=<redacted> 
+[members]     SECRET_KEY=<redacted> GOOGLE_CLIENT_ID=<redacted> GOOGLE_CLIENT_SECRET=<redacted> ADMIN_EMAILS=<redacted>
+              SMTP_HOST/SMTP_PORT/SMTP_USER/SMTP_PASS/SMTP_FROM  (without these the
+              school-email verification code is only logged, never delivered)
+
+# GPU worker access. GPU_WORKER_URL is where the worker lives; WORKER_TOKEN is the
+# shared bearer token it requires on every request. Same token value in all five
+# files. Generate with:  python3 -c "import secrets; print(secrets.token_urlsafe(32))"
+#
+# The token exists because the network is not the security boundary. In July 2026
+# one stolen SSH key reached the private network and that was equivalent to full
+# control of the GPU box. Anything that can route to :15100 must still hold the
+# token before it can queue GPU work.
+[necron-worker]      WORKER_TOKEN=<redacted>   (worker refuses to start without it)
+[style-transfer]     GPU_WORKER_URL=<redacted> WORKER_TOKEN=<redacted>
+[photo-editor]       GPU_WORKER_URL=<redacted> WORKER_TOKEN=<redacted>
+[image-classifier]   GPU_WORKER_URL=<redacted> WORKER_TOKEN=<redacted>
+[sentiment-analyzer] GPU_WORKER_URL=<redacted> WORKER_TOKEN=<redacted>
 
 ############ installed spb services (which run) ############
 spb-chess.service running

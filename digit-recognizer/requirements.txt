@@ -1,0 +1,6 @@
+# train.py builds the CNN from MNIST; app.py serves it. torchvision is needed
+# for the dataset and transforms used by training.
+flask>=3.0
+torch>=2.2
+torchvision>=0.17
+numpy>=1.26

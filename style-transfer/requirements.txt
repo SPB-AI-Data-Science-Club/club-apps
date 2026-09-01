@@ -1,0 +1,6 @@
+# Classic filters are CPU-only PIL/NumPy. requests is for the optional GPU
+# worker: without it the AI Restyle tab returns a graceful 503.
+flask>=3.0
+Pillow>=10.2
+numpy>=1.26
+requests>=2.31

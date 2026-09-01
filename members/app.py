@@ -2,7 +2,6 @@ import os
 import json
 import time
 import hmac
-import random
 import hashlib
 import smtplib
 import secrets
@@ -297,7 +296,10 @@ def issue_code(db, google_id, email, name, grade, role_req, google_email):
     admin_emails = [e.strip() for e in
                     os.environ.get('ADMIN_EMAILS', '').split(',') if e.strip()]
     role = 'admin' if google_email in admin_emails else role_req
-    code = f'{random.randint(0, 999999):06d}'
+    # secrets, not random: this code is the membership gate, so it needs a
+    # CSPRNG. random is a Mersenne Twister and its stream is reconstructable
+    # from observed output; an attacker can request codes at their own address.
+    code = f'{secrets.randbelow(1000000):06d}'
     expires = (_now() + timedelta(minutes=CODE_TTL_MIN)).isoformat()
     db.execute('''
         INSERT INTO email_verifications
@@ -493,7 +495,16 @@ def verify_email():
                 session.pop(k, None)
             return redirect(url_for('announcements'))
 
+    if error is None and request.args.get('too_soon'):
+        error = ('A code was just sent. Wait a minute before asking for '
+                 'another one, and check your spam folder.')
     return render_template('verify_email.html', email=row['email'], error=error)
+
+# Minimum gap between two code emails for the same Google account. Without this,
+# every click of Resend sent real mail to a student address AND reset attempts to
+# 0, so it was both a mail-bomb primitive and a way to reset the wrong-code
+# counter indefinitely. created_at is refreshed by issue_code on every send.
+RESEND_COOLDOWN_SEC = 60
 
 @app.route('/verify-email/resend', methods=['POST'])
 def resend_code():
@@ -503,6 +514,16 @@ def resend_code():
     row = db.execute('SELECT * FROM email_verifications WHERE google_id = ?',
                      (session['google_id'],)).fetchone()
     if row:
+        # created_at is written by SQLite's CURRENT_TIMESTAMP, which is UTC but
+        # naive; compare it against a naive UTC now.
+        try:
+            last = datetime.fromisoformat(row['created_at'])
+        except (TypeError, ValueError):
+            last = None
+        age = ((_now().replace(tzinfo=None) - last).total_seconds()
+               if last else RESEND_COOLDOWN_SEC)
+        if age < RESEND_COOLDOWN_SEC:
+            return redirect(url_for('verify_email', too_soon='1'))
         issue_code(db, row['google_id'], row['email'], row['name'],
                    row['grade'], row['role'], session.get('google_email', ''))
     return redirect(url_for('verify_email'))

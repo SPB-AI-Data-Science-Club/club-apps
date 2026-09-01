@@ -15,6 +15,11 @@ from functools import lru_cache
 from flask import Flask, render_template, request, jsonify
 
 app = Flask(__name__)
+# Custom-corpus mode builds a model from whatever text is posted, so cap the
+# request body. nginx defaults to 1 MB in front of this, but the app must not
+# depend on a proxy it might not be behind (a member running `python app.py`
+# has no nginx at all).
+app.config["MAX_CONTENT_LENGTH"] = 512 * 1024
 
 BASE_DIR   = os.path.dirname(os.path.abspath(__file__))
 CORPUS_DIR = os.path.join(BASE_DIR, "corpora")
@@ -80,16 +85,34 @@ def build_model_from_text(text: str, order: int):
     return dict(model)
 
 
+def _clamp(raw, lo, hi, default, cast):
+    """Coerce one slider value, falling back to the default on junk input.
+
+    The sliders are the only intended caller, but this is a public endpoint:
+    without the cast guard, any non-numeric value raised straight out of the
+    view and turned a malformed request into a 500.
+    """
+    try:
+        return max(lo, min(hi, cast(raw)))
+    except (TypeError, ValueError):
+        return default
+
+
 @app.route("/api/generate", methods=["POST"])
 def generate():
-    cfg         = request.get_json(force=True)
+    cfg = request.get_json(silent=True)
+    if not isinstance(cfg, dict):
+        return jsonify({"error": "Expected a JSON object."}), 400
     corpus      = cfg.get("corpus", "shakespeare")
-    order       = max(1, min(MAX_ORDER, int(cfg.get("order", 4))))
-    temperature = max(0.05, min(2.5, float(cfg.get("temperature", 1.0))))
-    length      = max(100, min(MAX_LENGTH, int(cfg.get("length", 500))))
+    order       = _clamp(cfg.get("order", 4),         1, MAX_ORDER,  4,   int)
+    temperature = _clamp(cfg.get("temperature", 1.0), 0.05, 2.5,     1.0, float)
+    length      = _clamp(cfg.get("length", 500),      100, MAX_LENGTH, 500, int)
 
     if corpus == "custom":
-        text = (cfg.get("custom_text") or "").strip()[:200_000]
+        raw = cfg.get("custom_text") or ""
+        if not isinstance(raw, str):
+            return jsonify({"error": "custom_text must be text."}), 400
+        text = raw.strip()[:200_000]
         if len(text) < order * 20:
             return jsonify({"error": "Paste at least a few sentences of training text."}), 400
         model = build_model_from_text(text, order)
@@ -134,4 +157,4 @@ def _no_html_cache(resp):
     return resp
 
 if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=5009)
+    app.run(debug=False, port=5009)
