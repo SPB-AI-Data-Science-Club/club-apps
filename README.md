@@ -1,6 +1,7 @@
 # SPB AI & Data Science Club — Web Apps
 
-GPU worker. The public website is a separate repository,
+Application code for the club's interactive demos and the GPU worker. The public
+website is a separate repository,
 [`portfolio`](https://github.com/SPB-AI-Data-Science-Club/portfolio).
 
 This repository is the source of truth for all app code.

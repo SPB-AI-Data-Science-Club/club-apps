@@ -6,31 +6,42 @@ entire site. A fresh session with no prior context can rebuild from this documen
 ## What the site is
 - **Public site** — `spbdatascience.org`. Lives in the separate repo `SPB-AI-Data-Science-Club/portfolio`
   (was deployed by a 2-minute `git fetch && git reset --hard origin/main` cron on the web server).
-  (auto-created empty on first run).
 - **9 demo apps** — each on its own subdomain, code in this repo:
   chess-bot→chess, digit-recognizer→digits, image-classifier→classifier, neural-net-visualizer→neural,
   pathfinding-visualizer→pathfinding, photo-editor→photo, sentiment-analyzer→sentiment, style-transfer→style,
   text-generator→textgen.
 
 ## Architecture
-- **1 web VPS** (Ubuntu): nginx reverse-proxy → one gunicorn service per app on `127.0.0.1:15001–15010`;
+- **1 web VPS** (Debian 13 on the current box; older copies of this guide said Ubuntu): nginx reverse-proxy →
+  one gunicorn service per app on `127.0.0.1:15001–15010`;
   Cloudflare in front (wildcard `*.spbdatascience.org`, SSL mode Full).
 - **1 GPU box** (optional): ran the heavy generation for `photo-editor` / `style-transfer` via an HTTP worker
   (`/status`, `/jobs/generate`, `/jobs/<id>`), reached from the VPS over a private link (Tailscale, `:15100`).
-  The worker code is NOT in this repo. Those apps degrade gracefully (return "GPU busy") without it.
+  The worker code IS in this repo, at `necron-worker/` (earlier copies of this guide wrongly said it was lost).
+  It requires a `WORKER_TOKEN` bearer token and refuses to start without one. Those apps degrade gracefully
+  (return "GPU busy") when the worker is absent.
 
 ## The key config file
 `docs/DEPLOY-REFERENCE.txt` — the exact nginx site config, every `spb-*.service` systemd unit (each app's port),
 the deploy cron, and the environment-variable NAMES each app needs (values redacted; generate fresh secrets).
 
 ## Steps
-1. Provision a fresh Ubuntu VPS. Apply the hardening below FIRST.
+1. Provision a fresh VPS. The current box is Debian 13 (trixie). Apply the hardening below FIRST.
+   Vultr's Debian image ships broken in two silent ways: no SSH host keys (`ssh-keygen -A`) and
+   `ListenAddress 127.0.0.1` in `sshd_config`. It also ships with ufw already enabled.
 2. `apt install nginx python3-venv git`; create `/var/www/spb-club/`.
-3. **Portfolio:** clone the `portfolio` repo to `/var/www/spb-club/portfolio`; set up its deploy (read-only deploy
-   key + the git fetch/reset cron).
+3. **Portfolio:** put the `portfolio` repo's contents at `/var/www/spb-club/portfolio`. The current box has NO
+   git clone and NO deploy cron: the site is pushed from the Mac with `portfolio/deploy.sh`, which rsyncs to the
+   `website` ssh alias. The older read-only-deploy-key + `git fetch && git reset --hard` cron is the better
+   design and is worth restoring at rebuild, because hand-copying is what let the live apps drift months behind
+   the repo.
 4. **Each app in this repo:** `python3 -m venv venv && venv/bin/pip install -r requirements.txt`; create its `.env`
    (variable names in `docs/DEPLOY-REFERENCE.txt`) with FRESH secrets; install its systemd unit from the reference;
    `systemctl enable --now spb-<name>`.
+5. **GPU worker apps:** generate one `WORKER_TOKEN` and put the same value in all five `.env` files
+   (`necron-worker`, `style-transfer`, `photo-editor`, `image-classifier`, `sentiment-analyzer`):
+   `python3 -c "import secrets; print(secrets.token_urlsafe(32))"`. The worker refuses to start without it.
+   This is the only secret the site needs.
 6. **nginx:** install the site config from the reference (server block per subdomain → `proxy_pass` its port).
    TLS via Cloudflare (origin cert; SSL Full).
 7. **DNS:** Cloudflare wildcard `*.spbdatascience.org` → VPS IP; map the subdomains above.

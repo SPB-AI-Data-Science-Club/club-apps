@@ -106,23 +106,21 @@ server {
     }
 }
 
-server {
-    listen 80;
-    listen 443 ssl;
-    include snippets/ssl-origin.conf;
-    location / {
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-Proto https;
-        proxy_read_timeout 60s;
-    }
-}
-
+# demo.spbdatascience.org. This block once issued a 301, the same landmine
+# described above. Do not restore that. demo. SERVES the projects page at 200,
+# and it has to: browsers that ever loaded the old /projects still hold a cached
+# permanent redirect to demo., so redirecting here ping-pongs against it forever.
 server {
     listen 80;
     listen 443 ssl;
     include snippets/ssl-origin.conf;
     server_name demo.spbdatascience.org;
+    root /var/www/spb-club/portfolio;
+    location / {
+        try_files /projects.html =404;
+        add_header Cache-Control "no-cache";
+        include /etc/nginx/snippets/sec-headers.conf;
+    }
 }
 
 server {
@@ -263,17 +261,6 @@ Environment=PYTHONUNBUFFERED=1
 [Install]
 WantedBy=multi-user.target
 
-[Unit]
-After=network.target
-
-[Service]
-User=www-data
-Restart=always
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-
 ===== /etc/systemd/system/spb-neural.service =====
 [Unit]
 Description=SPB Neural Net Visualizer
@@ -374,8 +361,6 @@ WantedBy=multi-user.target
 */2 * * * * root /usr/local/bin/deploy-portfolio
 
 ############ ENV VARIABLE NAMES PER APP (values redacted) ############
-              school-email verification code is only logged, never delivered)
-
 # GPU worker access. GPU_WORKER_URL is where the worker lives; WORKER_TOKEN is the
 # shared bearer token it requires on every request. Same token value in all five
 # files. Generate with:  python3 -c "import secrets; print(secrets.token_urlsafe(32))"
