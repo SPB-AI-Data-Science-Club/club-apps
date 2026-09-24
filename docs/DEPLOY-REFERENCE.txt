@@ -41,9 +41,10 @@ server {
 
     # /upcoming -> the 2026 workshop page (added 2026-09-23). The event page
     # used to live at /upcoming; it now has a permanent home at
-    # /workshop-2026 and no page links to /upcoming anymore. The printed
-    # poster and its QR code point at /upcoming, so the path must keep
-    # resolving.
+    # /workshop-2026 and no page links to /upcoming anymore. The printed 2026
+    # poster shows "Sign up at spbdatascience.org/upcoming" as text, so the
+    # path must keep resolving. (Its QR code goes to the Google Form, not
+    # to /upcoming.)
     #
     # 302, NEVER 301. After the workshop this becomes a redirect to the home
     # page. A 301 would be cached by browsers permanently, with no server-side
