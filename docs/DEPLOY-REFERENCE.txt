@@ -55,6 +55,29 @@ server {
         return 302 /workshop-2026;
     }
 
+    # Media was reorganized into per-event folders on 2026-09-26. The site now
+    # serves /img/logo.png, /img/club/, /img/workshop-2025/, /img/workshop-2026/.
+    # Before that the logo sat at the web root and img/ was flat, with
+    # "workshop" meaning 2026 and "workshop1" meaning 2025.
+    #
+    # These four old paths were og:image and poster targets, so they are baked
+    # into links already shared on Discord, iMessage, Facebook and the rest.
+    # Those scrapers re-fetch by the URL stored at share time, so without these
+    # the preview image silently vanishes from posts that already went out.
+    #
+    # 302, NEVER 301, same reasoning as /upcoming above.
+    #
+    # Note these sit behind the `expires 30d` asset block, so Cloudflare holds
+    # edge copies of the OLD files for up to 30 days after the move. During
+    # that window the old URL returns 200 from cache rather than the 302. That
+    # is harmless (the cached bytes are the right image), but it means you
+    # cannot verify these rules through Cloudflare. Test at the origin:
+    #   curl -sI -H 'Host: spbdatascience.org' http://127.0.0.1/logo.png
+    location = /logo.png             { return 302 /img/logo.png; }
+    location = /img/workshop.png     { return 302 /img/workshop-2026/poster.png; }
+    location = /img/workshop1.webp   { return 302 /img/workshop-2025/poster.webp; }
+    location = /img/workshop1-og.jpg { return 302 /img/workshop-2025/poster-og.jpg; }
+
     # HTML pages must always revalidate so a deploy is reflected immediately
     # (prevents stale pages loading an old gpu-status.js, etc.).
     location / {
